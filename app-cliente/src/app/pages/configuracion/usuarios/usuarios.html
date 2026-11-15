@@ -1,0 +1,134 @@
+<header class="cabecera">
+  <div>
+    <a routerLink="/configuracion" class="volver">Configuración</a>
+    <h1>Usuarios</h1>
+    <p class="descripcion">Quién puede entrar al sistema de tu restaurante y qué puede hacer.</p>
+  </div>
+  <button type="button" class="primario" (click)="nuevo()">Nuevo usuario</button>
+</header>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando usuarios…</p>
+} @else if (errorLista()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorLista() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else {
+  <div class="tabla-contenedor">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Nombre</th>
+          <th scope="col">Usuario</th>
+          <th scope="col">Rol</th>
+          <th scope="col">Estado</th>
+          <th scope="col"><span class="oculto">Acciones</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (u of lista(); track u.id) {
+          <tr>
+            <td>
+              <span class="nombre">{{ u.nombre }}</span>
+              @if (u.usuario === auth.sesion()?.usuario) {
+                <span class="yo">tú</span>
+              }
+              @if (u.email) {
+                <small class="correo">{{ u.email }}</small>
+              }
+            </td>
+            <td>{{ u.usuario }}</td>
+            <td>{{ etiquetaRol(u.rol) }}</td>
+            <td>
+              <span class="estado" [class.inactivo]="!u.activo">
+                {{ u.activo ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="acciones">
+              <button type="button" class="enlace" (click)="editar(u)">Editar</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<dialog #dialogo aria-labelledby="titulo-dialogo">
+  <form [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+    <h2 id="titulo-dialogo">{{ editando() ? 'Editar usuario' : 'Nuevo usuario' }}</h2>
+
+    <div class="campo">
+      <label for="u-nombre">Nombre completo</label>
+      <input id="u-nombre" type="text" formControlName="nombre" autocomplete="off" />
+      @if (form.controls.nombre.touched && form.controls.nombre.invalid) {
+        <small class="aviso">Escribe el nombre de la persona</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="u-usuario">Usuario</label>
+      <input
+        id="u-usuario"
+        type="text"
+        formControlName="usuario"
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck="false"
+      />
+      @if (editando()) {
+        <small class="ayuda">El usuario no se puede cambiar.</small>
+      } @else if (form.controls.usuario.touched && form.controls.usuario.invalid) {
+        <small class="aviso">Usa solo letras, números, punto, guion o guion bajo</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="u-email">Correo (opcional)</label>
+      <input id="u-email" type="email" formControlName="email" autocomplete="off" />
+      @if (form.controls.email.touched && form.controls.email.invalid) {
+        <small class="aviso">Escribe un correo válido</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="u-rol">Rol</label>
+      <select id="u-rol" formControlName="rol">
+        @for (r of roles; track r.valor) {
+          <option [value]="r.valor">{{ r.etiqueta }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="campo">
+      <label for="u-clave">{{ editando() ? 'Nueva contraseña (opcional)' : 'Contraseña' }}</label>
+      <input id="u-clave" type="password" formControlName="clave" autocomplete="new-password" />
+      @if (form.controls.clave.touched && form.controls.clave.invalid) {
+        <small class="aviso">La contraseña debe tener entre 8 y 64 caracteres</small>
+      } @else {
+        <small class="ayuda">
+          {{ editando() ? 'Déjala vacía para no cambiarla.' : 'Mínimo 8 caracteres.' }}
+        </small>
+      }
+    </div>
+
+    @if (editando()) {
+      <label class="marca-check">
+        <input type="checkbox" formControlName="activo" />
+        Puede entrar al sistema
+      </label>
+    }
+
+    @if (errorForm()) {
+      <p class="error" role="alert">{{ errorForm() }}</p>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrar()">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </form>
+</dialog>

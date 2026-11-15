@@ -85,6 +85,18 @@
   <div class="fondo" (click)="cerrarMenu()"></div>
 
   <main class="contenido">
+    @if (planes.plan(); as p) {
+      <div
+        class="franja-plan"
+        [class.aviso]="nivel(p) === 'aviso'"
+        [class.critico]="nivel(p) === 'critico'"
+      >
+        <strong>Plan {{ p.plan }}</strong>
+        <span>{{ p.usuariosActivos }} de {{ p.maxUsuarios }} usuarios</span>
+        <span>{{ p.estado === 'SUSPENDIDO' ? 'Suscripción suspendida' : textoVencimiento(p.diasRestantes) }}</span>
+        <a routerLink="/configuracion/plan">Ver mi plan</a>
+      </div>
+    }
     <router-outlet />
   </main>
 </div>

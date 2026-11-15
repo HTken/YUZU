@@ -50,11 +50,23 @@ export const routes: Routes = [
       },
       {
         path: 'configuracion',
-        loadComponent: seccion,
-        data: {
-          titulo: 'Configuración',
-          descripcion: 'Datos del restaurante, usuarios, productos y mesas.',
-        },
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () =>
+              import('./pages/configuracion/configuracion').then((m) => m.Configuracion),
+          },
+          {
+            path: 'usuarios',
+            loadComponent: () =>
+              import('./pages/configuracion/usuarios/usuarios').then((m) => m.Usuarios),
+          },
+          {
+            path: 'plan',
+            loadComponent: () => import('./pages/configuracion/plan/plan').then((m) => m.Plan),
+          },
+        ],
       },
     ],
   },
