@@ -1,0 +1,223 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.pagina {
+  display: grid;
+  grid-template-columns: minmax(320px, 5fr) 7fr;
+  min-height: 100vh;
+}
+
+/* ---------- Panel de marca ---------- */
+
+.marca {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 56px);
+  background: var(--yuzu);
+  color: var(--hoja);
+}
+
+.marca-texto {
+  position: relative;
+  z-index: 1;
+}
+
+.logo {
+  display: block;
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.marca-linea {
+  margin: 10px 0 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.rodaja {
+  position: absolute;
+  top: clamp(190px, 30vh, 300px);
+  left: -20%;
+  width: min(120%, 700px);
+  height: auto;
+  animation: aparecer 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: rotate(-35deg) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rodaja {
+    animation: none;
+  }
+}
+
+/* ---------- Formulario ---------- */
+
+.panel {
+  display: grid;
+  place-items: center;
+  padding: 32px 24px;
+  background: #fff;
+}
+
+.formulario {
+  width: 100%;
+  max-width: 380px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  margin: 6px 0 28px;
+  color: var(--texto-suave);
+}
+
+.restaurante {
+  margin: 0 0 20px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--yuzu);
+  border-radius: 0 8px 8px 0;
+  background: var(--hoja-suave);
+}
+
+.campo {
+  margin-bottom: 18px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid var(--borde);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--texto);
+  font-size: 1rem;
+}
+
+input:focus-visible {
+  outline: none;
+  border-color: var(--hoja);
+  box-shadow: 0 0 0 4px rgba(245, 196, 0, 0.45);
+}
+
+.clave {
+  position: relative;
+}
+
+.clave input {
+  padding-right: 96px;
+}
+
+.ojo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 0 10px 10px 0;
+  background: none;
+  color: var(--hoja);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ojo:focus-visible {
+  outline: 3px solid var(--yuzu);
+  outline-offset: -3px;
+}
+
+.aviso {
+  display: block;
+  margin-top: 6px;
+  color: var(--error);
+  font-size: 0.875rem;
+}
+
+.error {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fdecea;
+  color: var(--error);
+  font-size: 0.95rem;
+}
+
+.entrar {
+  width: 100%;
+  height: 50px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--hoja);
+  color: var(--yuzu);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.entrar:hover:not(:disabled) {
+  background: #0e3322;
+}
+
+.entrar:focus-visible {
+  outline: 3px solid var(--yuzu);
+  outline-offset: 3px;
+}
+
+.entrar:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* ---------- Pantallas angostas ---------- */
+
+@media (max-width: 880px) {
+  .pagina {
+    grid-template-columns: 1fr;
+    grid-template-rows: 200px 1fr;
+  }
+
+  .marca {
+    padding: 20px 24px;
+  }
+
+  .rodaja {
+    top: auto;
+    right: -80px;
+    bottom: -150px;
+    left: auto;
+    width: 360px;
+  }
+
+  .panel {
+    align-items: start;
+    padding-top: 32px;
+  }
+}

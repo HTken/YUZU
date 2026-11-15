@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Yuzu Backend (local)",
+      "request": "launch",
+      "mainClass": "com.yuzu.backend.YuzuBackendApplication",
+      "args": "--spring.profiles.active=local"
+    }
+  ]
+}
