@@ -1,0 +1,323 @@
+<header class="cabecera">
+  <div>
+    <h1>Restaurantes</h1>
+    <p class="resumen">
+      {{ resumen().total }} en total · {{ resumen().activos }} activos ·
+      {{ resumen().enGracia }} en gracia · {{ resumen().suspendidos }} suspendidos ·
+      {{ resumen().porVencer }} vencen en 7 días
+    </p>
+  </div>
+  <div class="acciones-cabecera">
+    <button type="button" class="secundario" [disabled]="revisando()" (click)="revisar()">
+      {{ revisando() ? 'Revisando…' : 'Revisar vencimientos' }}
+    </button>
+    <button type="button" class="primario" (click)="abrir('nuevo')">Nuevo restaurante</button>
+  </div>
+</header>
+
+@if (resultadoRevision()) {
+  <p class="resultado" role="status">{{ resultadoRevision() }}</p>
+}
+
+<div class="filtros">
+  <div class="campo-filtro">
+    <label for="buscar">Buscar</label>
+    <input
+      id="buscar"
+      type="search"
+      placeholder="Nombre o subdominio"
+      [value]="busqueda()"
+      (input)="busqueda.set($any($event.target).value)"
+    />
+  </div>
+  <div class="campo-filtro">
+    <label for="estado">Estado</label>
+    <select id="estado" [value]="filtroEstado()" (change)="filtroEstado.set($any($event.target).value)">
+      <option value="">Todos</option>
+      <option value="ACTIVO">Activo</option>
+      <option value="EN_GRACIA">En gracia</option>
+      <option value="SUSPENDIDO">Suspendido</option>
+    </select>
+  </div>
+</div>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando restaurantes…</p>
+} @else if (errorLista()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorLista() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (filtrados().length === 0) {
+  <p class="aviso-estado">
+    {{ lista().length === 0 ? 'Todavía no hay restaurantes. Crea el primero con «Nuevo restaurante».' : 'Ningún restaurante coincide con tu búsqueda.' }}
+  </p>
+} @else {
+  <div class="tabla-contenedor">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Restaurante</th>
+          <th scope="col">Plan</th>
+          <th scope="col">Usuarios</th>
+          <th scope="col">Vencimiento</th>
+          <th scope="col">Estado</th>
+          <th scope="col"><span class="oculto">Acciones</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of filtrados(); track r.id) {
+          <tr>
+            <td>
+              <span class="nombre">{{ r.nombre }}</span>
+              <small class="subdominio">{{ r.subdominio }}</small>
+            </td>
+            <td>{{ r.plan }}</td>
+            <td [class.critico]="r.usuariosActivos > r.maxUsuarios">
+              {{ r.usuariosActivos }} de {{ r.maxUsuarios }}
+            </td>
+            <td>
+              {{ formatearFecha(r.venceEn) }}
+              <small class="vence" [class]="claseVencimiento(r)">{{ textoVencimiento(r.diasRestantes) }}</small>
+            </td>
+            <td>
+              <span
+                class="estado"
+                [class.gracia]="r.estado === 'EN_GRACIA'"
+                [class.suspendido]="r.estado === 'SUSPENDIDO'"
+              >
+                {{ etiquetaEstado(r.estado) }}
+              </span>
+            </td>
+            <td class="acciones">
+              <button type="button" class="enlace" (click)="abrir('renovar', r)">Renovar</button>
+              <button type="button" class="enlace" (click)="abrir('plan', r)">Plan</button>
+              @if (r.estado === 'SUSPENDIDO') {
+                <button type="button" class="enlace" (click)="abrir('reactivar', r)">Reactivar</button>
+              } @else {
+                <button type="button" class="enlace peligro" (click)="abrir('suspender', r)">Suspender</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<dialog #dialogo aria-labelledby="titulo-dialogo" (close)="modo.set(null)">
+  @switch (modo()) {
+    @case ('nuevo') {
+      <form [formGroup]="formNuevo" (ngSubmit)="confirmar()" novalidate>
+        <h2 id="titulo-dialogo">Nuevo restaurante</h2>
+
+        <div class="campo">
+          <label for="n-nombre">Nombre del restaurante</label>
+          <input id="n-nombre" type="text" formControlName="nombre" autocomplete="off" />
+          @if (formNuevo.controls.nombre.touched && formNuevo.controls.nombre.invalid) {
+            <small class="aviso">Escribe el nombre del restaurante</small>
+          }
+        </div>
+
+        <div class="campo">
+          <label for="n-subdominio">Subdominio</label>
+          <input
+            id="n-subdominio"
+            type="text"
+            formControlName="subdominio"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+          @if (formNuevo.controls.subdominio.touched && formNuevo.controls.subdominio.invalid) {
+            <small class="aviso">Usa letras, números y guiones, sin espacios</small>
+          } @else {
+            <small class="ayuda">Con él entrarán al sistema. No se puede repetir.</small>
+          }
+        </div>
+
+        <div class="fila-doble">
+          <div class="campo">
+            <label for="n-plan">Plan</label>
+            <select id="n-plan" formControlName="planId">
+              @for (p of planesActivos(); track p.id) {
+                <option [ngValue]="p.id">{{ p.nombre }} ({{ p.maxUsuarios }} usuarios)</option>
+              }
+            </select>
+          </div>
+          <div class="campo">
+            <label for="n-dias">Días hasta el primer vencimiento</label>
+            <input id="n-dias" type="number" min="0" max="365" formControlName="diasDePrueba" />
+          </div>
+        </div>
+
+        <h3>Administrador del restaurante</h3>
+
+        <div class="campo">
+          <label for="n-admin-nombre">Nombre completo</label>
+          <input id="n-admin-nombre" type="text" formControlName="adminNombre" autocomplete="off" />
+          @if (formNuevo.controls.adminNombre.touched && formNuevo.controls.adminNombre.invalid) {
+            <small class="aviso">Escribe el nombre de la persona</small>
+          }
+        </div>
+
+        <div class="fila-doble">
+          <div class="campo">
+            <label for="n-admin-usuario">Usuario</label>
+            <input
+              id="n-admin-usuario"
+              type="text"
+              formControlName="adminUsuario"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+            @if (formNuevo.controls.adminUsuario.touched && formNuevo.controls.adminUsuario.invalid) {
+              <small class="aviso">Letras, números, punto, guion o guion bajo</small>
+            }
+          </div>
+          <div class="campo">
+            <label for="n-admin-clave">Contraseña</label>
+            <input id="n-admin-clave" type="password" formControlName="adminClave" autocomplete="new-password" />
+            @if (formNuevo.controls.adminClave.touched && formNuevo.controls.adminClave.invalid) {
+              <small class="aviso">Entre 8 y 64 caracteres</small>
+            }
+          </div>
+        </div>
+
+        @if (errorForm()) {
+          <p class="error" role="alert">{{ errorForm() }}</p>
+        }
+
+        <div class="botones">
+          <button type="button" class="secundario" (click)="cerrar()">Cancelar</button>
+          <button type="submit" class="primario" [disabled]="guardando()">
+            {{ guardando() ? 'Creando…' : 'Crear restaurante' }}
+          </button>
+        </div>
+      </form>
+    }
+
+    @case ('renovar') {
+      <form [formGroup]="formRenovar" (ngSubmit)="confirmar()" novalidate>
+        <h2 id="titulo-dialogo">Registrar pago y renovar</h2>
+        <p class="texto">
+          <strong>{{ seleccionado()?.nombre }}</strong> vence el
+          {{ seleccionado() ? formatearFecha(seleccionado()!.venceEn) : '' }}. Al registrar el pago queda activo.
+          Si ya había vencido, los meses se cuentan desde hoy.
+        </p>
+
+        <div class="campo">
+          <label for="r-meses">Meses a renovar</label>
+          <select id="r-meses" formControlName="meses">
+            @for (m of opcionesMeses; track m) {
+              <option [ngValue]="m">{{ m }} {{ m === 1 ? 'mes' : 'meses' }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="fila-doble">
+          <div class="campo">
+            <label for="r-metodo">Método de pago</label>
+            <select id="r-metodo" formControlName="metodo">
+              @for (m of opcionesMetodo; track m.valor) {
+                <option [ngValue]="m.valor">{{ m.etiqueta }}</option>
+              }
+            </select>
+          </div>
+          <div class="campo">
+            <label for="r-referencia">N.º de operación (opcional)</label>
+            <input id="r-referencia" type="text" formControlName="referencia" autocomplete="off" />
+          </div>
+        </div>
+        <p class="ayuda">Si escribes el número de operación, el sistema evita registrar dos veces el mismo pago.</p>
+
+        @if (errorForm()) {
+          <p class="error" role="alert">{{ errorForm() }}</p>
+        }
+
+        <div class="botones">
+          <button type="button" class="secundario" (click)="cerrar()">Cancelar</button>
+          <button type="submit" class="primario" [disabled]="guardando()">
+            {{ guardando() ? 'Registrando…' : 'Registrar pago' }}
+          </button>
+        </div>
+      </form>
+    }
+
+    @case ('plan') {
+      <form [formGroup]="formPlan" (ngSubmit)="confirmar()" novalidate>
+        <h2 id="titulo-dialogo">Cambiar de plan</h2>
+        <p class="texto">
+          <strong>{{ seleccionado()?.nombre }}</strong> usa hoy el plan {{ seleccionado()?.plan }} con
+          {{ seleccionado()?.usuariosActivos }} usuarios activos.
+        </p>
+
+        <div class="campo">
+          <label for="p-plan">Nuevo plan</label>
+          <select id="p-plan" formControlName="planId">
+            @for (p of planesActivos(); track p.id) {
+              <option [ngValue]="p.id">
+                {{ p.nombre }}: {{ p.maxUsuarios }} usuarios, S/ {{ p.precioMensual.toFixed(2) }} al mes
+              </option>
+            }
+          </select>
+        </div>
+
+        @if (errorForm()) {
+          <p class="error" role="alert">{{ errorForm() }}</p>
+        }
+
+        <div class="botones">
+          <button type="button" class="secundario" (click)="cerrar()">Cancelar</button>
+          <button type="submit" class="primario" [disabled]="guardando()">
+            {{ guardando() ? 'Guardando…' : 'Cambiar plan' }}
+          </button>
+        </div>
+      </form>
+    }
+
+    @case ('suspender') {
+      <form (submit)="$event.preventDefault(); confirmar()">
+        <h2 id="titulo-dialogo">Suspender restaurante</h2>
+        <p class="texto">
+          <strong>{{ seleccionado()?.nombre }}</strong> no podrá usar el sistema, salvo para ver su plan y
+          renovarlo. Sus datos no se borran.
+        </p>
+
+        @if (errorForm()) {
+          <p class="error" role="alert">{{ errorForm() }}</p>
+        }
+
+        <div class="botones">
+          <button type="button" class="secundario" (click)="cerrar()">Cancelar</button>
+          <button type="submit" class="peligro-boton" [disabled]="guardando()">
+            {{ guardando() ? 'Suspendiendo…' : 'Suspender' }}
+          </button>
+        </div>
+      </form>
+    }
+
+    @case ('reactivar') {
+      <form (submit)="$event.preventDefault(); confirmar()">
+        <h2 id="titulo-dialogo">Reactivar restaurante</h2>
+        <p class="texto">
+          <strong>{{ seleccionado()?.nombre }}</strong> volverá a usar el sistema de inmediato. Esto no cambia su
+          fecha de vencimiento: si ya venció, la revisión diaria lo volverá a suspender. Para darle más tiempo
+          usa «Renovar».
+        </p>
+
+        @if (errorForm()) {
+          <p class="error" role="alert">{{ errorForm() }}</p>
+        }
+
+        <div class="botones">
+          <button type="button" class="secundario" (click)="cerrar()">Cancelar</button>
+          <button type="submit" class="primario" [disabled]="guardando()">
+            {{ guardando() ? 'Reactivando…' : 'Reactivar' }}
+          </button>
+        </div>
+      </form>
+    }
+  }
+</dialog>

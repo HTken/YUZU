@@ -25,10 +25,20 @@ public final class SesionActual {
 
     public static Long restauranteId() {
         Number id = jwt().getClaim("restauranteId");
+        if (id == null) {
+            // Es un token de la consola de plataforma: no pertenece a ningún restaurante.
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Esta sesión no pertenece a un restaurante");
+        }
         return id.longValue();
     }
 
     public static Long usuarioId() {
         return Long.valueOf(jwt().getSubject());
+    }
+
+    /** Nombre de usuario de quien hace la petición, para dejar constancia de quién registró algo. */
+    public static String usuario() {
+        String usuario = jwt().getClaimAsString("usuario");
+        return usuario != null ? usuario : "desconocido";
     }
 }

@@ -1,0 +1,38 @@
+:root {
+  --yuzu: #f5c400;
+  --yuzu-oscuro: #c99700;
+  --hoja: #14452f;
+  --hoja-suave: #e8f1e6;
+  --texto: #17211a;
+  --texto-suave: #55645a;
+  --borde: #cfd8d1;
+  --error: #b3261e;
+  --alerta: #8a5a00;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--texto);
+  background: #f5f7f3;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}

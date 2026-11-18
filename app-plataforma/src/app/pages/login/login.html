@@ -1,0 +1,85 @@
+<main class="pagina">
+  <section class="marca">
+    <div class="marca-texto">
+      <span class="logo">yuzu</span>
+      <p class="marca-linea">Consola de plataforma</p>
+    </div>
+
+    <svg class="rodaja" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
+      <circle cx="200" cy="200" r="196" fill="#e0a100" />
+      <circle cx="200" cy="200" r="178" fill="#fff4c2" />
+      @for (grados of gajos; track grados) {
+        <g [attr.transform]="'rotate(' + grados + ' 200 200)'">
+          <path
+            d="M200 204 L164 68 Q200 44 236 68 Z"
+            fill="#ffd84d"
+            stroke="#ffd84d"
+            stroke-width="8"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M200 184 L181 96 Q200 82 219 96 Z"
+            fill="#ffeb99"
+            stroke="#ffeb99"
+            stroke-width="6"
+            stroke-linejoin="round"
+          />
+        </g>
+      }
+      <circle cx="200" cy="200" r="16" fill="#fff4c2" />
+    </svg>
+  </section>
+
+  <section class="panel">
+    <form class="formulario" [formGroup]="form" (ngSubmit)="ingresar()" novalidate>
+      <h2>Iniciar sesión</h2>
+      <p class="sub">Acceso solo para el equipo de Yuzu.</p>
+
+      <div class="campo">
+        <label for="usuario">Usuario</label>
+        <input
+          id="usuario"
+          type="text"
+          formControlName="usuario"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
+        />
+        @if (form.controls.usuario.touched && form.controls.usuario.invalid) {
+          <small class="aviso">Escribe tu usuario</small>
+        }
+      </div>
+
+      <div class="campo">
+        <label for="clave">Contraseña</label>
+        <div class="clave">
+          <input
+            id="clave"
+            [type]="verClave() ? 'text' : 'password'"
+            formControlName="clave"
+            autocomplete="current-password"
+          />
+          <button
+            type="button"
+            class="ojo"
+            (click)="verClave.set(!verClave())"
+            [attr.aria-label]="verClave() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+          >
+            {{ verClave() ? 'Ocultar' : 'Mostrar' }}
+          </button>
+        </div>
+        @if (form.controls.clave.touched && form.controls.clave.invalid) {
+          <small class="aviso">Escribe tu contraseña</small>
+        }
+      </div>
+
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+
+      <button class="entrar" type="submit" [disabled]="cargando()">
+        {{ cargando() ? 'Entrando…' : 'Entrar' }}
+      </button>
+    </form>
+  </section>
+</main>

@@ -46,8 +46,10 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login", "/error").permitAll()
+                .requestMatchers("/api/auth/login", "/api/plataforma/auth/login", "/error").permitAll()
+                .requestMatchers("/api/plataforma/**").hasRole("SUPERADMIN")
                 .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
+                .requestMatchers("/api/pagos/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth -> oauth
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(convertidorJwt())));
@@ -83,7 +85,8 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOriginPatterns(List.of("http://localhost:4200", "http://*.localhost:4200"));
+        cfg.setAllowedOriginPatterns(List.of(
+                "http://localhost:4200", "http://*.localhost:4200", "http://localhost:4300"));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
 

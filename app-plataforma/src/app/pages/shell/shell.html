@@ -1,0 +1,14 @@
+<header class="barra">
+  <div class="marca">
+    <span class="logo">yuzu</span>
+    <span class="etiqueta">Plataforma</span>
+  </div>
+  <div class="usuario">
+    <span>{{ auth.sesion()?.nombre }}</span>
+    <button type="button" (click)="auth.logout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<main class="contenido">
+  <router-outlet />
+</main>
