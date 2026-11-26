@@ -127,5 +127,18 @@ poder leerla). Quedó:
 
 ## Pendientes propuestos (el dueño decide el orden)
 
+## Pendientes propuestos (el dueño decide el orden)
+
 Facturación electrónica SUNAT, avisos de vencimiento por correo, despliegue, límite de intentos de login y
 2FA, cookie httpOnly en lugar de guardar el token en el navegador, exportar informes a CSV.
+
+## Sincronización entre módulos (backend + frontends)
+
+- **Impacto cruzado obligatorio:** Siempre que agregues o modifiques un endpoint, DTO, campo, estado o regla de negocio en `backend/`, revisa de inmediato cómo afecta a `app-cliente/` y `app-plataforma/` y actualiza ambos frontends en el mismo turno si consumen esa funcionalidad.
+- **Un módulo funcional = los 3 proyectos:** "Avanzar módulo por módulo" significa completar toda la funcionalidad de punta a punta (`backend/` + `app-cliente/` + `app-plataforma/`), nunca dejar el backend listo y los frontends pendientes para después salvo que el dueño lo pida.
+- **Contratos sincronizados:** Mantén alineados los tipos/interfaces TypeScript en `app-cliente` y `app-plataforma` con los DTOs y respuestas de error (`{"mensaje": "..."}`) del `backend`.
+- **Verificación conjunta antes de cerrar:** Antes de dar por terminada cualquier tarea que toque más de una carpeta, ejecuta y reporta el estado de compilación de los 3 proyectos:
+  - `backend/`: `mvn clean compile` (y pruebas si aplica)
+  - `app-cliente/`: `ng build`
+  - `app-plataforma/`: `ng build`
+- **Resumen ordenado por carpeta:** Al finalizar, lista los archivos modificados o creados agrupados por `backend/`, `app-cliente/` y `app-plataforma/`.
