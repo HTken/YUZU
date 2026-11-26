@@ -14,6 +14,20 @@ public record RespuestaCulqi(int estado, Map<String, Object> cuerpo) {
         return valor == null ? null : valor.toString();
     }
 
+    /** Un objeto anidado del cuerpo (por ejemplo "data", "plan" o "periods"), o null si no vino. */
+    public Map<?, ?> mapa(String clave) {
+        Object valor = cuerpo == null ? null : cuerpo.get(clave);
+        return valor instanceof Map<?, ?> mapa ? mapa : null;
+    }
+
+    /**
+     * Solo tiene sentido para la respuesta de crear un cargo (POST /charges): un 200 (a diferencia del 201
+     * de éxito) significa que el cargo necesita pasar por la autenticación 3DS antes de poder cobrarse.
+     */
+    public boolean necesitaAutenticacion3DS() {
+        return estado == 200;
+    }
+
     /** Culqi puede informar el resultado en "response_code" o dentro del objeto "outcome". */
     public boolean ventaExitosa() {
         if (!esExitosa() || !"charge".equals(texto("object"))) {
