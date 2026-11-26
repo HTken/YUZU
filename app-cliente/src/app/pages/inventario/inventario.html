@@ -1,0 +1,384 @@
+<header class="cabecera">
+  <div>
+    <h1>Inventario</h1>
+    <p class="descripcion">Tus insumos y cuánto queda de cada uno: compras, usos, mermas y conteos.</p>
+  </div>
+  <div class="acciones-cabecera">
+    <button type="button" class="secundario" (click)="cargar(true)">Actualizar</button>
+    @if (esAdmin()) {
+      <a routerLink="/inventario/recetas" class="secundario como-boton">Recetas</a>
+      <button type="button" class="primario" (click)="nuevoInsumo()">Nuevo insumo</button>
+    }
+  </div>
+</header>
+
+@if (planes.plan(); as p) {
+  <p class="cupo" [class.lleno]="p.insumosActivos >= p.maxInsumos">
+    Insumos activos: <strong>{{ p.insumosActivos }} de {{ p.maxInsumos }}</strong>
+    <span class="cupo-plan">(plan {{ p.plan }})</span>
+  </p>
+}
+
+<div class="avisos" aria-live="polite">
+  @if (aviso()) {
+    <p class="aviso-ok">
+      <span>{{ aviso() }}</span>
+      <button type="button" class="enlace" (click)="aviso.set('')">
+        Entendido<span class="oculto"> y cerrar este mensaje</span>
+      </button>
+    </p>
+  }
+</div>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando el inventario…</p>
+} @else if (errorLista()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorLista() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (insumos().length === 0) {
+  <p class="aviso-estado">
+    @if (esAdmin()) {
+      Aún no tienes insumos. Crea el primero, por ejemplo "Arroz" o "Pollo", e indica cuánto hay hoy en el local.
+    } @else {
+      Todavía no hay insumos. Pídele al administrador que los cree.
+    }
+  </p>
+} @else {
+  <div class="herramientas">
+    <div class="filtros" role="group" aria-label="Mostrar">
+      <button
+        type="button"
+        class="chip"
+        [class.seleccionado]="filtro() === 'TODOS'"
+        [attr.aria-pressed]="filtro() === 'TODOS'"
+        (click)="elegirFiltro('TODOS')"
+      >
+        Todos <span class="cuenta">{{ conteo().todos }}</span>
+      </button>
+      <button
+        type="button"
+        class="chip bajo"
+        [class.seleccionado]="filtro() === 'BAJO'"
+        [attr.aria-pressed]="filtro() === 'BAJO'"
+        (click)="elegirFiltro('BAJO')"
+      >
+        Stock bajo <span class="cuenta" [class.alerta]="conteo().bajo > 0">{{ conteo().bajo }}</span>
+      </button>
+      <button
+        type="button"
+        class="chip agotado"
+        [class.seleccionado]="filtro() === 'AGOTADO'"
+        [attr.aria-pressed]="filtro() === 'AGOTADO'"
+        (click)="elegirFiltro('AGOTADO')"
+      >
+        Agotados <span class="cuenta" [class.alerta]="conteo().agotado > 0">{{ conteo().agotado }}</span>
+      </button>
+      @if (conteo().inactivo > 0) {
+        <button
+          type="button"
+          class="chip"
+          [class.seleccionado]="filtro() === 'INACTIVO'"
+          [attr.aria-pressed]="filtro() === 'INACTIVO'"
+          (click)="elegirFiltro('INACTIVO')"
+        >
+          Inactivos <span class="cuenta">{{ conteo().inactivo }}</span>
+        </button>
+      }
+    </div>
+
+    <div class="buscador">
+      <label for="buscar" class="oculto">Buscar un insumo</label>
+      <input
+        id="buscar"
+        type="search"
+        placeholder="Buscar insumo"
+        autocomplete="off"
+        [value]="busqueda()"
+        (input)="buscar($any($event.target).value)"
+      />
+    </div>
+  </div>
+
+  @if (visibles().length === 0) {
+    <p class="aviso-estado">
+      @if (busqueda().trim() !== '') {
+        Ningún insumo coincide con "{{ busqueda().trim() }}".
+      } @else if (filtro() === 'BAJO') {
+        Ningún insumo tiene el stock bajo. Todo en orden.
+      } @else if (filtro() === 'AGOTADO') {
+        No hay insumos agotados.
+      } @else {
+        No hay insumos para mostrar aquí.
+      }
+    </p>
+  } @else {
+    <div class="tabla-contenedor">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Insumo</th>
+            <th scope="col" class="derecha">Stock</th>
+            <th scope="col" class="derecha">Mínimo</th>
+            <th scope="col">Estado</th>
+            <th scope="col"><span class="oculto">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (i of visibles(); track i.id) {
+            <tr [class.fila-bajo]="i.estado === 'BAJO'" [class.fila-agotado]="i.estado === 'AGOTADO'">
+              <td>
+                <span class="nombre">{{ i.nombre }}</span>
+              </td>
+              <td class="derecha cantidad">{{ conUnidad(i.stockActual, i.unidad) }}</td>
+              <td class="derecha cantidad suave">
+                @if (i.stockMinimo > 0) {
+                  {{ conUnidad(i.stockMinimo, i.unidad) }}
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                <span class="estado" [attr.data-estado]="i.estado">{{ textoEstado(i) }}</span>
+              </td>
+              <td class="acciones">
+                @if (i.activo) {
+                  <button type="button" class="enlace" (click)="abrirMovimiento(i)">
+                    Movimiento<span class="oculto"> de {{ i.nombre }}</span>
+                  </button>
+                }
+                <button type="button" class="enlace" (click)="verHistorial(i)">
+                  Historial<span class="oculto"> de {{ i.nombre }}</span>
+                </button>
+                @if (esAdmin()) {
+                  <button type="button" class="enlace" (click)="editarInsumo(i)">
+                    Editar<span class="oculto"> {{ i.nombre }}</span>
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+<!-- ===================== Crear o editar un insumo ===================== -->
+<dialog #dlgInsumo aria-labelledby="titulo-insumo">
+  <form [formGroup]="formInsumo" (ngSubmit)="guardarInsumo()" novalidate>
+    <h2 id="titulo-insumo">{{ editando() ? 'Editar insumo' : 'Nuevo insumo' }}</h2>
+
+    <div class="campo">
+      <label for="i-nombre">Nombre</label>
+      <input id="i-nombre" type="text" formControlName="nombre" autocomplete="off" />
+      @if (formInsumo.controls.nombre.touched && formInsumo.controls.nombre.invalid) {
+        <small class="aviso">Escribe el nombre del insumo (máximo 80 caracteres)</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="i-unidad">Unidad de medida</label>
+      <select id="i-unidad" formControlName="unidad">
+        @for (u of unidades; track u.valor) {
+          <option [value]="u.valor">{{ u.etiqueta }}</option>
+        }
+      </select>
+      @if (editando()?.unidadFija) {
+        <small class="ayuda">
+          La unidad no se puede cambiar porque este insumo ya tiene movimientos o está en una receta. Si te
+          equivocaste, crea otro insumo y desactiva este.
+        </small>
+      } @else {
+        <small class="ayuda">El stock se cuenta siempre en esta unidad.</small>
+      }
+    </div>
+
+    @if (!editando()) {
+      <div class="campo">
+        <label for="i-inicial">Stock inicial (lo que hay hoy)</label>
+        <input id="i-inicial" type="text" inputmode="decimal" formControlName="stockInicial" autocomplete="off" />
+        @if (formInsumo.controls.stockInicial.invalid) {
+          <small class="aviso">Escribe un número, con hasta 3 decimales</small>
+        } @else {
+          <small class="ayuda">
+            Déjalo vacío si empiezas sin nada. Después el stock cambia con entradas, salidas y mermas.
+          </small>
+        }
+      </div>
+    }
+
+    <div class="campo">
+      <label for="i-minimo">Stock mínimo</label>
+      <input id="i-minimo" type="text" inputmode="decimal" formControlName="stockMinimo" autocomplete="off" />
+      @if (formInsumo.controls.stockMinimo.touched && formInsumo.controls.stockMinimo.invalid) {
+        <small class="aviso">Escribe un número, con hasta 3 decimales (0 si no quieres aviso)</small>
+      } @else {
+        <small class="ayuda">
+          Cuando el stock llegue a este número se marca como "Stock bajo". Escribe 0 para no recibir aviso.
+        </small>
+      }
+    </div>
+
+    <label class="marca-check">
+      <input type="checkbox" formControlName="activo" />
+      Insumo activo
+    </label>
+    <p class="ayuda aparte">Los insumos activos cuentan para el límite de tu plan.</p>
+
+    @if (errorForm()) {
+      <p class="error" role="alert">{{ errorForm() }}</p>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrar(dlgInsumo)">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===================== Registrar un movimiento ===================== -->
+<dialog #dlgMovimiento aria-labelledby="titulo-movimiento">
+  @if (movInsumo(); as i) {
+    <form (submit)="$event.preventDefault(); guardarMovimiento()" novalidate>
+      <h2 id="titulo-movimiento">{{ i.nombre }}</h2>
+      <p class="stock-actual">
+        Stock actual: <strong>{{ conUnidad(i.stockActual, i.unidad) }}</strong>
+      </p>
+
+      <fieldset class="tipos">
+        <legend>¿Qué pasó?</legend>
+        @for (t of tiposDisponibles(); track t.valor) {
+          <label class="tipo" [class.elegido]="tipo() === t.valor">
+            <input
+              type="radio"
+              name="tipo-movimiento"
+              [value]="t.valor"
+              [checked]="tipo() === t.valor"
+              (change)="elegirTipo(t.valor)"
+            />
+            {{ t.etiqueta }}
+          </label>
+        }
+      </fieldset>
+      <p class="ayuda aparte">{{ ayudaTipo() }}</p>
+
+      <div class="campo">
+        <label for="m-cantidad">{{ etiquetaCantidad() }} ({{ abreviatura(i.unidad) }})</label>
+        <input
+          id="m-cantidad"
+          type="text"
+          inputmode="decimal"
+          autocomplete="off"
+          [value]="cantidadEscrita()"
+          (input)="escribirCantidad($any($event.target).value)"
+        />
+        @if (!calculo().vacio && calculo().error) {
+          <small class="aviso">{{ calculo().error }}</small>
+        } @else if (calculo().resultado) {
+          <small class="resultado">
+            El stock quedará en <strong>{{ calculo().resultado }}</strong>
+          </small>
+        }
+      </div>
+
+      @if (tipo() === 'ENTRADA') {
+        <div class="campo">
+          <label for="m-costo">Costo total de la compra (S/, opcional)</label>
+          <input
+            id="m-costo"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            [value]="costoEscrito()"
+            (input)="costoEscrito.set($any($event.target).value)"
+          />
+          <small class="ayuda">Lo que pagaste por toda la cantidad, no por cada unidad.</small>
+        </div>
+      }
+
+      <div class="campo">
+        <label for="m-nota">
+          @if (tipo() === 'MERMA') {
+            ¿Qué pasó? (obligatorio)
+          } @else {
+            Nota (opcional)
+          }
+        </label>
+        <input
+          id="m-nota"
+          type="text"
+          maxlength="150"
+          autocomplete="off"
+          [value]="notaEscrita()"
+          (input)="notaEscrita.set($any($event.target).value)"
+        />
+      </div>
+
+      @if (errorMovimiento()) {
+        <p class="error" role="alert">{{ errorMovimiento() }}</p>
+      }
+
+      <div class="botones">
+        <button type="button" class="secundario" (click)="cerrar(dlgMovimiento)">Cancelar</button>
+        <button type="submit" class="primario" [disabled]="guardando()">
+          {{ guardando() ? 'Guardando…' : 'Registrar' }}
+        </button>
+      </div>
+    </form>
+  }
+</dialog>
+
+<!-- ===================== Historial de un insumo ===================== -->
+<dialog #dlgHistorial class="ancho" aria-labelledby="titulo-historial">
+  @if (historialDe(); as i) {
+    <h2 id="titulo-historial">Historial de {{ i.nombre }}</h2>
+    <p class="stock-actual">
+      Stock actual: <strong>{{ conUnidad(i.stockActual, i.unidad) }}</strong>
+      <span class="suave"> · se muestran los últimos 30 movimientos</span>
+    </p>
+
+    @if (cargandoHistorial()) {
+      <p class="vacio">Cargando…</p>
+    } @else if (errorHistorial()) {
+      <p class="error" role="alert">{{ errorHistorial() }}</p>
+    } @else if (movimientos().length === 0) {
+      <p class="vacio">Este insumo todavía no tiene movimientos.</p>
+    } @else {
+      <ul class="historial">
+        @for (m of movimientos(); track m.id) {
+          <li>
+            <div class="linea-principal">
+              <span class="tipo-mov" [attr.data-tipo]="m.tipo">{{ etiquetaTipo(m.tipo) }}</span>
+              <strong class="delta">{{ cantidadConSigno(m.cantidad, i.unidad) }}</strong>
+              <span class="cuando">{{ fechaHora(m.creadoEn) }}</span>
+            </div>
+            <p class="detalle">
+              Quedó en {{ conUnidad(m.stockResultante, i.unidad) }}
+              @if (m.costoTotal !== null) {
+                · Costo {{ soles(m.costoTotal) }}
+              }
+              · {{ m.registradoPor }}
+            </p>
+            @if (m.faltante) {
+              <p class="detalle aviso">
+                Faltaron {{ conUnidad(m.faltante, i.unidad) }}: el stock registrado no alcanzaba. Revisa si falta
+                anotar una compra o haz un conteo.
+              </p>
+            }
+            @if (m.nota) {
+              <p class="nota-mov">{{ m.nota }}</p>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrar(dlgHistorial)">Cerrar</button>
+    </div>
+  }
+</dialog>

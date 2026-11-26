@@ -17,7 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.yuzu.backend.catalogo.ProductoRepository;
 import com.yuzu.backend.config.SesionActual;
+import com.yuzu.backend.inventario.InsumoRepository;
+import com.yuzu.backend.mesa.MesaRepository;
 import com.yuzu.backend.plan.Plan;
 import com.yuzu.backend.plan.PlanRepository;
 import com.yuzu.backend.restaurante.Restaurante;
@@ -39,17 +42,26 @@ public class PlataformaService {
     private final RestauranteRepository restaurantes;
     private final PlanRepository planes;
     private final UsuarioRepository usuarios;
+    private final ProductoRepository productos;
+    private final MesaRepository mesas;
+    private final InsumoRepository insumos;
     private final PasswordEncoder passwordEncoder;
     private final SuscripcionService suscripcion;
 
     public PlataformaService(RestauranteRepository restaurantes,
                              PlanRepository planes,
                              UsuarioRepository usuarios,
+                             ProductoRepository productos,
+                             MesaRepository mesas,
+                             InsumoRepository insumos,
                              PasswordEncoder passwordEncoder,
                              SuscripcionService suscripcion) {
         this.restaurantes = restaurantes;
         this.planes = planes;
         this.usuarios = usuarios;
+        this.productos = productos;
+        this.mesas = mesas;
+        this.insumos = insumos;
         this.passwordEncoder = passwordEncoder;
         this.suscripcion = suscripcion;
     }
@@ -118,6 +130,30 @@ public class PlataformaService {
                     "El restaurante tiene " + activos + " usuarios activos y el plan " + nuevo.getNombre()
                             + " permite " + nuevo.getMaxUsuarios()
                             + ". Debe desactivar usuarios antes de bajar de plan.");
+        }
+
+        long productosActivos = productos.countByRestauranteIdAndActivoTrue(id);
+        if (productosActivos > nuevo.getMaxProductos()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "El restaurante tiene " + productosActivos + " productos activos y el plan " + nuevo.getNombre()
+                            + " permite " + nuevo.getMaxProductos()
+                            + ". Debe desactivar productos antes de bajar de plan.");
+        }
+
+        long mesasActivas = mesas.countByRestauranteIdAndActivoTrue(id);
+        if (mesasActivas > nuevo.getMaxMesas()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "El restaurante tiene " + mesasActivas + " mesas activas y el plan " + nuevo.getNombre()
+                            + " permite " + nuevo.getMaxMesas()
+                            + ". Debe desactivar mesas antes de bajar de plan.");
+        }
+
+        long insumosActivos = insumos.countByRestauranteIdAndActivoTrue(id);
+        if (insumosActivos > nuevo.getMaxInsumos()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "El restaurante tiene " + insumosActivos + " insumos activos y el plan " + nuevo.getNombre()
+                            + " permite " + nuevo.getMaxInsumos()
+                            + ". Debe desactivar insumos antes de bajar de plan.");
         }
 
         restaurante.setPlanId(nuevo.getId());

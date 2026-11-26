@@ -1,0 +1,152 @@
+<header class="cabecera">
+  <div>
+    <h1>Cocina</h1>
+    <p class="descripcion">
+      @if (totalPlatos() > 0) {
+        {{ totalPlatos() }} {{ totalPlatos() === 1 ? 'plato por preparar' : 'platos por preparar' }}, del pedido más antiguo al más nuevo.
+      } @else {
+        Aquí aparecen los pedidos que envían los mozos.
+      }
+    </p>
+  </div>
+
+  <div class="acciones-cabecera">
+    <button
+      type="button"
+      class="secundario"
+      [attr.aria-pressed]="sonido()"
+      (click)="alternarSonido()"
+    >
+      {{ sonido() ? 'Sonido activado' : 'Activar sonido' }}
+    </button>
+    <button type="button" class="secundario" [disabled]="ocupado()" (click)="cargar(true)">Actualizar</button>
+  </div>
+</header>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando la cocina…</p>
+} @else if (errorCarga()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorCarga() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else {
+  @if (error()) {
+    <p class="mensaje error" role="alert">{{ error() }}</p>
+  }
+
+  @if (anulados().length > 0) {
+    <section class="anulados" role="alert" aria-labelledby="t-anulados">
+      <div class="anulados-cabecera">
+        <div>
+          <h2 id="t-anulados">¡Atención! Se anuló {{ anulados().length === 1 ? 'un plato' : 'estos platos' }}</h2>
+          <p>No {{ anulados().length === 1 ? 'lo' : 'los' }} prepares. Si ya {{ anulados().length === 1 ? 'lo' : 'los' }} habías empezado, avisa al mozo.</p>
+        </div>
+        @if (anulados().length > 1) {
+          <button type="button" class="entendido" [disabled]="ocupado()" (click)="entendido(idsDeAnulados())">
+            Entendido todos
+          </button>
+        }
+      </div>
+      <ul class="lista-anulados">
+        @for (a of anulados(); track a.id) {
+          <li>
+            <span class="anulado-texto">
+              <strong>{{ a.mesa }}</strong> · {{ a.cantidad }}× {{ a.nombre }}
+              @if (a.nota) {
+                <em>({{ a.nota }})</em>
+              }
+              <small>
+                {{ a.yaEstabaListo ? 'ya estaba listo' : 'estaba por preparar' }} · {{ haceCuanto(a.anuladoEn) }}
+              </small>
+            </span>
+            <button type="button" class="entendido" [disabled]="ocupado()" (click)="entendido([a.id])">
+              Entendido<span class="oculto"> {{ a.nombre }} de {{ a.mesa }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (pendientes().length === 0) {
+    <div class="vacio-grande">
+      <p class="vacio-titulo">No hay pedidos por preparar</p>
+      <p>Cuando un mozo envíe una cuenta a cocina, aparecerá aquí y esta pantalla se actualiza sola.</p>
+    </div>
+  } @else {
+    <ul class="tickets">
+      @for (t of pendientes(); track t.clave) {
+        <li>
+          <article
+            class="ticket"
+            [class.atencion]="prioridad(t.enviadoEn) === 'atencion'"
+            [class.urgente]="prioridad(t.enviadoEn) === 'urgente'"
+            [class.nuevo]="nuevos().has(t.clave)"
+            [attr.aria-label]="'Pedido de ' + t.mesa"
+          >
+            <header class="ticket-cabecera">
+              <div>
+                <h2>{{ t.mesa }}</h2>
+                <p class="ticket-detalle">
+                  @if (t.salon) {
+                    {{ t.salon }} ·
+                  }
+                  {{ t.mozo }} · {{ hora(t.enviadoEn) }}
+                </p>
+              </div>
+              <span class="espera">{{ espera(t.enviadoEn) }}</span>
+            </header>
+
+            <ul class="platos">
+              @for (i of t.items; track i.id) {
+                <li class="plato">
+                  <div class="plato-datos">
+                    <span class="plato-linea">
+                      <span class="cantidad">{{ i.cantidad }}×</span>
+                      <span class="plato-nombre">{{ i.nombre }}</span>
+                    </span>
+                    @if (i.nota) {
+                      <span class="plato-nota">{{ i.nota }}</span>
+                    }
+                  </div>
+                  @if (t.items.length > 1) {
+                    <button type="button" class="listo-uno" [disabled]="ocupado()" (click)="listo([i.id])">
+                      Listo<span class="oculto"> {{ i.nombre }}</span>
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+
+            <button type="button" class="listo-todo" [disabled]="ocupado()" (click)="listo(idsDelTicket(t))">
+              {{ t.items.length > 1 ? 'Todo listo' : 'Listo' }}
+            </button>
+          </article>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (listos().length > 0) {
+    <section class="listos" aria-labelledby="t-listos">
+      <h2 id="t-listos">Listos, esperando al mozo ({{ listos().length }})</h2>
+      <ul class="lista-listos">
+        @for (l of listos(); track l.id) {
+          <li>
+            <span class="listo-texto">
+              <strong>{{ l.mesa }}</strong> · {{ l.cantidad }}× {{ l.nombre }}
+              @if (l.nota) {
+                <em>({{ l.nota }})</em>
+              }
+              <small>{{ haceCuanto(l.listoEn) }}</small>
+            </span>
+            <button type="button" class="enlace" [disabled]="ocupado()" (click)="regresar(l.id)">
+              Deshacer<span class="oculto"> {{ l.nombre }} de {{ l.mesa }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+}

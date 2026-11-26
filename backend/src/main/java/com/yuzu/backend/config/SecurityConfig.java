@@ -9,6 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -50,6 +51,32 @@ public class SecurityConfig {
                 .requestMatchers("/api/plataforma/**").hasRole("SUPERADMIN")
                 .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                 .requestMatchers("/api/pagos/**").hasRole("ADMIN")
+                // La carta la puede ver cualquier usuario del restaurante (los mozos la necesitan);
+                // solo el administrador la modifica.
+                .requestMatchers(HttpMethod.GET, "/api/categorias/**", "/api/productos/**").authenticated()
+                .requestMatchers("/api/categorias/**", "/api/productos/**").hasRole("ADMIN")
+                // Igual con los salones y mesas: todos los ven, solo el administrador los modifica.
+                .requestMatchers(HttpMethod.GET, "/api/salones/**", "/api/mesas/**").authenticated()
+                .requestMatchers("/api/salones/**", "/api/mesas/**").hasRole("ADMIN")
+                // Pedidos: administrador, cajero y mozo los toman; anular algo ya enviado es solo del administrador.
+                .requestMatchers("/api/pedidos/*/anular", "/api/pedidos/*/items/*/anular").hasRole("ADMIN")
+                .requestMatchers("/api/pedidos/**").hasAnyRole("ADMIN", "CAJERO", "MOZO")
+                // Cocina (ver lo que hay que preparar y marcarlo como listo): administrador y cocina.
+                .requestMatchers("/api/cocina/**").hasAnyRole("ADMIN", "COCINA")
+                // Caja (abrir, cerrar, cobrar, ingresos y egresos): administrador y cajero.
+                // Anular una venta ya cobrada: solo el administrador (va antes de la regla de la caja).
+                .requestMatchers("/api/caja/ventas/*/anular").hasRole("ADMIN")
+                .requestMatchers("/api/caja/**").hasAnyRole("ADMIN", "CAJERO")
+                // Inventario: administrador, cajero y cocina lo ven y registran entradas, salidas y mermas
+                // (el ajuste por conteo lo limita el servicio al administrador). Crear o editar insumos: solo el administrador.
+                // Las recetas (qué insumos gasta cada producto) las ve y edita solo el administrador.
+                .requestMatchers("/api/inventario/recetas/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/inventario/insumos/*/movimientos")
+                    .hasAnyRole("ADMIN", "CAJERO", "COCINA")
+                .requestMatchers(HttpMethod.GET, "/api/inventario/**").hasAnyRole("ADMIN", "CAJERO", "COCINA")
+                .requestMatchers("/api/inventario/**").hasRole("ADMIN")
+                // Informes (ventas, productos, insumos): solo el administrador.
+                .requestMatchers("/api/informes/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth -> oauth
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(convertidorJwt())));

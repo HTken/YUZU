@@ -1,0 +1,313 @@
+<header class="cabecera">
+  <div>
+    <a routerLink="/configuracion" class="volver">Configuración</a>
+    <h1>Mesas</h1>
+    <p class="descripcion">Los salones de tu local y las mesas de cada uno.</p>
+  </div>
+  @if (esAdmin()) {
+    <div class="acciones-cabecera">
+      <button type="button" class="secundario" (click)="nuevoSalon()">Nuevo salón</button>
+      <button
+        type="button"
+        class="secundario"
+        [disabled]="salonesActivos().length === 0"
+        (click)="nuevoLote()"
+      >
+        Agregar varias
+      </button>
+      <button
+        type="button"
+        class="primario"
+        [disabled]="salonesActivos().length === 0"
+        (click)="nuevaMesa()"
+      >
+        Nueva mesa
+      </button>
+    </div>
+  }
+</header>
+
+@if (planes.plan(); as p) {
+  <p class="cupo" [class.lleno]="p.mesasActivas >= p.maxMesas">
+    Mesas activas: <strong>{{ p.mesasActivas }} de {{ p.maxMesas }}</strong>
+    <span class="cupo-plan">(plan {{ p.plan }})</span>
+  </p>
+}
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando las mesas…</p>
+} @else if (errorLista()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorLista() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else {
+  <div class="distribucion">
+    <aside class="panel-salones" aria-label="Salones">
+      <h2 class="subtitulo">Salones</h2>
+
+      @if (salones().length === 0) {
+        <p class="vacio">
+          @if (esAdmin()) {
+            Aún no tienes salones. Crea el primero, por ejemplo "Salón principal" o "Terraza", y luego agrega sus mesas.
+          } @else {
+            Todavía no hay salones configurados.
+          }
+        </p>
+      } @else {
+        <ul class="salones">
+          <li>
+            <button
+              type="button"
+              class="filtro"
+              [class.seleccionado]="filtro() === null"
+              [attr.aria-pressed]="filtro() === null"
+              (click)="filtrar(null)"
+            >
+              <span>Todos</span>
+              <span class="cuenta">{{ mesas().length }}</span>
+            </button>
+          </li>
+          @for (s of salones(); track s.id) {
+            <li class="fila-salon">
+              <button
+                type="button"
+                class="filtro"
+                [class.seleccionado]="filtro() === s.id"
+                [attr.aria-pressed]="filtro() === s.id"
+                (click)="filtrar(s.id)"
+              >
+                <span>
+                  {{ s.nombre }}
+                  @if (!s.activo) {
+                    <span class="etiqueta-inactiva">inactivo</span>
+                  }
+                </span>
+                <span class="cuenta">{{ s.mesas }}</span>
+              </button>
+              @if (esAdmin()) {
+                <button type="button" class="enlace" (click)="editarSalon(s)">
+                  Editar<span class="oculto"> el salón {{ s.nombre }}</span>
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+
+    <section class="panel-mesas" aria-label="Mesas">
+      @if (mesasFiltradas().length === 0) {
+        <p class="aviso-estado">
+          @if (salones().length === 0) {
+            Cuando crees un salón podrás agregar tus mesas aquí.
+          } @else if (filtro() !== null) {
+            Este salón todavía no tiene mesas.
+          } @else {
+            Aún no hay mesas. Usa "Agregar varias" para crear, por ejemplo, de la Mesa 1 a la Mesa 10 de una vez.
+          }
+        </p>
+      } @else {
+        <div class="tabla-contenedor">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Mesa</th>
+                <th scope="col">Salón</th>
+                <th scope="col">Capacidad</th>
+                <th scope="col">Estado</th>
+                @if (esAdmin()) {
+                  <th scope="col"><span class="oculto">Acciones</span></th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of mesasFiltradas(); track m.id) {
+                <tr>
+                  <td><span class="nombre">{{ m.nombre }}</span></td>
+                  <td>{{ m.salon }}</td>
+                  <td>{{ etiquetaCapacidad(m.capacidad) }}</td>
+                  <td>
+                    <span class="estado" [class.inactivo]="!m.activo">
+                      {{ m.activo ? 'Activa' : 'Inactiva' }}
+                    </span>
+                  </td>
+                  @if (esAdmin()) {
+                    <td class="acciones">
+                      <button type="button" class="enlace" (click)="editarMesa(m)">
+                        Editar<span class="oculto"> {{ m.nombre }}</span>
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  </div>
+}
+
+<dialog #dlgSalon aria-labelledby="titulo-salon">
+  <form [formGroup]="formSalon" (ngSubmit)="guardarSalon()" novalidate>
+    <h2 id="titulo-salon">{{ editandoSalon() ? 'Editar salón' : 'Nuevo salón' }}</h2>
+
+    <div class="campo">
+      <label for="s-nombre">Nombre</label>
+      <input id="s-nombre" type="text" formControlName="nombre" autocomplete="off" />
+      @if (formSalon.controls.nombre.touched && formSalon.controls.nombre.invalid) {
+        <small class="aviso">Escribe el nombre del salón (máximo 60 caracteres)</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="s-orden">Posición en la lista</label>
+      <input id="s-orden" type="number" inputmode="numeric" min="0" max="9999" step="1" formControlName="orden" />
+      @if (formSalon.controls.orden.touched && formSalon.controls.orden.invalid) {
+        <small class="aviso">Escribe un número entero entre 0 y 9999</small>
+      } @else {
+        <small class="ayuda">Los salones se muestran de menor a mayor número.</small>
+      }
+    </div>
+
+    <label class="marca-check">
+      <input type="checkbox" formControlName="activo" />
+      Salón activo
+    </label>
+
+    @if (errorForm()) {
+      <p class="error" role="alert">{{ errorForm() }}</p>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrar(dlgSalon)">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<dialog #dlgMesa aria-labelledby="titulo-mesa">
+  <form [formGroup]="formMesa" (ngSubmit)="guardarMesa()" novalidate>
+    <h2 id="titulo-mesa">{{ editandoMesa() ? 'Editar mesa' : 'Nueva mesa' }}</h2>
+
+    <div class="campo">
+      <label for="m-salon">Salón</label>
+      <select id="m-salon" formControlName="salonId">
+        <option [ngValue]="null" disabled>Elige un salón</option>
+        @for (s of opcionesSalon(); track s.id) {
+          <option [ngValue]="s.id">{{ s.nombre }}{{ s.activo ? '' : ' (inactivo)' }}</option>
+        }
+      </select>
+      @if (formMesa.controls.salonId.touched && formMesa.controls.salonId.invalid) {
+        <small class="aviso">Elige un salón</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="m-nombre">Nombre de la mesa</label>
+      <input id="m-nombre" type="text" formControlName="nombre" autocomplete="off" placeholder="Mesa 1" />
+      @if (formMesa.controls.nombre.touched && formMesa.controls.nombre.invalid) {
+        <small class="aviso">Escribe el nombre de la mesa (máximo 40 caracteres)</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="m-capacidad">Capacidad (personas)</label>
+      <input id="m-capacidad" type="number" inputmode="numeric" min="1" max="50" step="1" formControlName="capacidad" />
+      @if (formMesa.controls.capacidad.touched && formMesa.controls.capacidad.invalid) {
+        <small class="aviso">Escribe un número entero entre 1 y 50</small>
+      }
+    </div>
+
+    <label class="marca-check">
+      <input type="checkbox" formControlName="activo" />
+      Mesa activa
+    </label>
+    <p class="ayuda aparte">Las mesas activas cuentan para el límite de tu plan.</p>
+
+    @if (errorForm()) {
+      <p class="error" role="alert">{{ errorForm() }}</p>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrar(dlgMesa)">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<dialog #dlgLote aria-labelledby="titulo-lote">
+  <form [formGroup]="formLote" (ngSubmit)="guardarLote()" novalidate>
+    <h2 id="titulo-lote">Agregar varias mesas</h2>
+
+    <div class="campo">
+      <label for="l-salon">Salón</label>
+      <select id="l-salon" formControlName="salonId">
+        <option [ngValue]="null" disabled>Elige un salón</option>
+        @for (s of salonesActivos(); track s.id) {
+          <option [ngValue]="s.id">{{ s.nombre }}</option>
+        }
+      </select>
+      @if (formLote.controls.salonId.touched && formLote.controls.salonId.invalid) {
+        <small class="aviso">Elige un salón</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="l-prefijo">Nombre base</label>
+      <input id="l-prefijo" type="text" formControlName="prefijo" autocomplete="off" />
+      @if (formLote.controls.prefijo.touched && formLote.controls.prefijo.invalid) {
+        <small class="aviso">Escribe el nombre base, por ejemplo "Mesa" (máximo 30 caracteres)</small>
+      }
+    </div>
+
+    <div class="fila-campos">
+      <div class="campo">
+        <label for="l-desde">Empezar en el número</label>
+        <input id="l-desde" type="number" inputmode="numeric" min="1" max="9999" step="1" formControlName="desde" />
+        @if (formLote.controls.desde.touched && formLote.controls.desde.invalid) {
+          <small class="aviso">Escribe un número entero desde 1</small>
+        }
+      </div>
+
+      <div class="campo">
+        <label for="l-cantidad">Cantidad de mesas</label>
+        <input id="l-cantidad" type="number" inputmode="numeric" min="1" max="50" step="1" formControlName="cantidad" />
+        @if (formLote.controls.cantidad.touched && formLote.controls.cantidad.invalid) {
+          <small class="aviso">Entre 1 y 50 mesas a la vez</small>
+        }
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="l-capacidad">Capacidad de cada mesa (personas)</label>
+      <input id="l-capacidad" type="number" inputmode="numeric" min="1" max="50" step="1" formControlName="capacidad" />
+      @if (formLote.controls.capacidad.touched && formLote.controls.capacidad.invalid) {
+        <small class="aviso">Escribe un número entero entre 1 y 50</small>
+      }
+    </div>
+
+    @if (vistaPreviaLote(); as vista) {
+      <p class="vista-previa">{{ vista }}</p>
+    }
+    @if (cupoLibre() !== null) {
+      <p class="ayuda aparte">Tu plan todavía permite {{ cupoLibre() }} {{ cupoLibre() === 1 ? 'mesa activa más' : 'mesas activas más' }}.</p>
+    }
+
+    @if (errorForm()) {
+      <p class="error" role="alert">{{ errorForm() }}</p>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrar(dlgLote)">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="guardando()">
+        {{ guardando() ? 'Creando…' : 'Crear mesas' }}
+      </button>
+    </div>
+  </form>
+</dialog>

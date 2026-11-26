@@ -10,10 +10,13 @@ public record PlanDto(
         String nombre,
         BigDecimal precioMensual,
         int maxUsuarios,
+        int maxProductos,
+        int maxMesas,
+        int maxInsumos,
         boolean activo) {
 
     public static PlanDto desde(Plan p) {
         return new PlanDto(p.getId(), p.getCodigo(), p.getNombre(), p.getPrecioMensual(), p.getMaxUsuarios(),
-                p.isActivo());
+                p.getMaxProductos(), p.getMaxMesas(), p.getMaxInsumos(), p.isActivo());
     }
 }

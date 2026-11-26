@@ -18,18 +18,20 @@ import { RouterLink } from '@angular/router';
       <li>
         <a routerLink="/configuracion/plan">
           <span class="titulo">Mi plan</span>
-          <span class="detalle">Tu plan, vencimiento y usuarios disponibles.</span>
+          <span class="detalle">Tu plan, vencimiento y lo que incluye.</span>
         </a>
       </li>
-      <li class="pronto">
-        <span class="titulo">Mesas</span>
-        <span class="detalle">Salones y mesas del local.</span>
-        <span class="etiqueta">Pronto</span>
+      <li>
+        <a routerLink="/configuracion/mesas">
+          <span class="titulo">Mesas</span>
+          <span class="detalle">Salones y mesas del local.</span>
+        </a>
       </li>
-      <li class="pronto">
-        <span class="titulo">Productos</span>
-        <span class="detalle">Carta, categorías y precios.</span>
-        <span class="etiqueta">Pronto</span>
+      <li>
+        <a routerLink="/configuracion/productos">
+          <span class="titulo">Productos</span>
+          <span class="detalle">Carta, categorías y precios.</span>
+        </a>
       </li>
       <li class="pronto">
         <span class="titulo">Datos del restaurante</span>

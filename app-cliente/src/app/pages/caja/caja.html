@@ -1,0 +1,391 @@
+<header class="cabecera">
+  <div>
+    <h1>Caja</h1>
+    @if (resumen(); as r) {
+      <p class="descripcion">
+        Abierta por {{ r.turno.abiertaPor }} desde las {{ hora(r.turno.abiertaEn) }}
+        · Empezó con {{ soles(r.turno.montoInicial) }}
+      </p>
+    } @else {
+      <p class="descripcion">Apertura y cierre, cobros, ingresos y egresos del día.</p>
+    }
+  </div>
+
+  @if (resumen()) {
+    <div class="acciones-cabecera">
+      <button type="button" class="secundario" [disabled]="ocupado()" (click)="cargar(true)">Actualizar</button>
+      <button type="button" class="secundario" [disabled]="ocupado()" (click)="abrirMovimiento('INGRESO')">Ingreso</button>
+      <button type="button" class="secundario" [disabled]="ocupado()" (click)="abrirMovimiento('EGRESO')">Egreso</button>
+      <button type="button" class="primario" [disabled]="ocupado()" (click)="abrirCierre()">Cerrar caja</button>
+    </div>
+  }
+</header>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando la caja…</p>
+} @else if (errorCarga()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorCarga() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else {
+  @if (error()) {
+    <p class="mensaje error" role="alert">{{ error() }}</p>
+  }
+  @if (aviso()) {
+    <p class="mensaje ok" role="status">{{ aviso() }}</p>
+  }
+
+  @if (resumen(); as r) {
+    @if (r.cuentasAbiertas > 0) {
+      <p class="mensaje atencion">
+        Hay {{ r.cuentasAbiertas }} {{ r.cuentasAbiertas === 1 ? 'cuenta abierta' : 'cuentas abiertas' }} en las mesas.
+        Se sumarán a esta caja cuando se cobren.
+      </p>
+    }
+
+    <section class="resumen" aria-label="Resumen del turno">
+      <div class="tarjeta destacada">
+        <span class="tarjeta-titulo">Efectivo que debe haber</span>
+        <strong class="tarjeta-valor">{{ soles(r.efectivoEsperado) }}</strong>
+        <small>Inicial + ventas en efectivo + ingresos − egresos</small>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-titulo">Ventas del turno</span>
+        <strong class="tarjeta-valor">{{ soles(r.totalVentas) }}</strong>
+        <small>
+          {{ r.ventas }} {{ r.ventas === 1 ? 'cuenta cobrada' : 'cuentas cobradas' }}
+          @if (r.ventasAnuladas.length > 0) {
+            · {{ r.ventasAnuladas.length }} {{ r.ventasAnuladas.length === 1 ? 'anulada' : 'anuladas' }}
+          }
+        </small>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-titulo">Ingresos</span>
+        <strong class="tarjeta-valor">{{ soles(r.ingresos) }}</strong>
+        <small>Dinero que entró al cajón</small>
+      </div>
+      <div class="tarjeta">
+        <span class="tarjeta-titulo">Egresos</span>
+        <strong class="tarjeta-valor">{{ soles(r.egresos) }}</strong>
+        <small>Dinero que salió del cajón</small>
+      </div>
+    </section>
+
+    <section class="bloque" aria-labelledby="t-metodos">
+      <h2 id="t-metodos">Cobrado por método de pago</h2>
+      <ul class="metodos">
+        @for (m of r.porMetodo; track m.metodo) {
+          <li>
+            <span>{{ etiquetaMetodo(m.metodo) }}</span>
+            <strong>{{ soles(m.monto) }}</strong>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="bloque" aria-labelledby="t-ventas">
+      <h2 id="t-ventas">Cuentas cobradas</h2>
+      @if (r.detalleVentas.length === 0) {
+        <p class="vacio">Todavía no se cobró ninguna cuenta en este turno.</p>
+      } @else {
+        <div class="tabla-contenedor">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Ticket</th>
+                <th scope="col">Hora</th>
+                <th scope="col">Mesa</th>
+                <th scope="col">Atendió</th>
+                <th scope="col">Cobró</th>
+                <th scope="col">Forma de pago</th>
+                <th scope="col" class="derecha">Total</th>
+                @if (esAdmin()) {
+                  <th scope="col" class="derecha accion">Acción</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (v of r.detalleVentas; track v.pedidoId) {
+                <tr>
+                  <td class="numero">{{ ticketNumero(v.ticket) }}</td>
+                  <td>{{ hora(v.cobradoEn) }}</td>
+                  <td>{{ v.mesa }}</td>
+                  <td>{{ v.mozo }}</td>
+                  <td>{{ v.cobradoPor }}</td>
+                  <td>{{ pagosTexto(v) }}</td>
+                  <td class="derecha numero">{{ soles(v.total) }}</td>
+                  @if (esAdmin()) {
+                    <td class="derecha accion">
+                      <button
+                        type="button"
+                        class="secundario chico peligro"
+                        [disabled]="ocupado()"
+                        [attr.aria-label]="'Anular la venta ' + ticketNumero(v.ticket)"
+                        (click)="pedirAnulacion(v)"
+                      >
+                        Anular
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (esAdmin()) {
+          <p class="nota-tabla">Solo se pueden anular ventas de la caja abierta. Al cerrar la caja ya no se pueden tocar.</p>
+        }
+      }
+    </section>
+
+    @if (r.ventasAnuladas.length > 0) {
+      <section class="bloque" aria-labelledby="t-anuladas">
+        <h2 id="t-anuladas">Ventas anuladas</h2>
+        <div class="tabla-contenedor">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Ticket</th>
+                <th scope="col">Cobrada</th>
+                <th scope="col">Mesa</th>
+                <th scope="col">Anuló</th>
+                <th scope="col">Motivo</th>
+                <th scope="col" class="derecha">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (v of r.ventasAnuladas; track v.pedidoId) {
+                <tr class="anulada">
+                  <td class="numero">
+                    {{ ticketNumero(v.ticket) }}
+                    <span class="tipo egreso">Anulada</span>
+                  </td>
+                  <td>{{ hora(v.cobradoEn) }}</td>
+                  <td>{{ v.mesa }}</td>
+                  <td>
+                    {{ v.anuladoPor }}
+                    <small class="persona">a las {{ hora(v.anuladoEn) }}</small>
+                  </td>
+                  <td class="motivo-anulacion">{{ v.motivo }}</td>
+                  <td class="derecha numero"><span class="total-tachado">{{ soles(v.total) }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="nota-tabla">Estas ventas no suman en el total, en los métodos de pago ni en el efectivo del cajón.</p>
+      </section>
+    }
+
+    <section class="bloque" aria-labelledby="t-movimientos">
+      <h2 id="t-movimientos">Ingresos y egresos</h2>
+      @if (r.movimientos.length === 0) {
+        <p class="vacio">No hay ingresos ni egresos en este turno.</p>
+      } @else {
+        <div class="tabla-contenedor">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Hora</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Motivo</th>
+                <th scope="col">Registró</th>
+                <th scope="col" class="derecha">Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of r.movimientos; track m.id) {
+                <tr>
+                  <td>{{ hora(m.creadoEn) }}</td>
+                  <td>
+                    <span class="tipo" [class.egreso]="m.tipo === 'EGRESO'">
+                      {{ m.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso' }}
+                    </span>
+                  </td>
+                  <td>{{ m.concepto }}</td>
+                  <td>{{ m.registradoPor }}</td>
+                  <td class="derecha numero">{{ m.tipo === 'EGRESO' ? '−' : '+' }} {{ soles(m.monto) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  } @else {
+    @if (ultimoCierre(); as c) {
+      <section class="cierre-hecho" aria-label="Caja cerrada">
+        <h2>Caja cerrada</h2>
+        <p>
+          Se esperaban {{ soles(c.efectivoEsperado ?? 0) }} y se contaron {{ soles(c.efectivoContado ?? 0) }}.
+          <strong [class]="claseDiferencia(c.diferencia)">{{ textoDiferencia(c.diferencia) }}</strong>
+        </p>
+      </section>
+    }
+
+    <section class="bloque abrir" aria-labelledby="t-abrir">
+      <h2 id="t-abrir">La caja está cerrada</h2>
+      <p class="vacio">Ábrela con el efectivo que dejas en el cajón para poder cobrar las cuentas de las mesas.</p>
+
+      <form [formGroup]="formApertura" (ngSubmit)="abrir()" novalidate>
+        <div class="campo">
+          <label for="a-monto">Efectivo con el que abres (S/)</label>
+          <input id="a-monto" type="text" inputmode="decimal" formControlName="montoInicial" autocomplete="off" />
+          @if (formApertura.controls.montoInicial.invalid && formApertura.controls.montoInicial.touched) {
+            <small class="aviso">Escribe un monto válido, por ejemplo 100 o 100.50 (puede ser 0)</small>
+          } @else {
+            <small class="ayuda">Si no dejas cambio en el cajón, escribe 0.</small>
+          }
+        </div>
+        <button type="submit" class="primario" [disabled]="ocupado()">
+          {{ ocupado() ? 'Abriendo…' : 'Abrir caja' }}
+        </button>
+      </form>
+    </section>
+
+    <section class="bloque" aria-labelledby="t-historial">
+      <h2 id="t-historial">Cajas anteriores</h2>
+      @if (historial().length === 0) {
+        <p class="vacio">Todavía no hay cajas cerradas.</p>
+      } @else {
+        <div class="tabla-contenedor">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Abrió</th>
+                <th scope="col">Cerró</th>
+                <th scope="col" class="derecha">Ventas</th>
+                <th scope="col" class="derecha">Esperado</th>
+                <th scope="col" class="derecha">Contado</th>
+                <th scope="col" class="derecha">Diferencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of historial(); track t.id) {
+                <tr>
+                  <td>
+                    {{ fechaHora(t.abiertaEn) }}
+                    <small class="persona">{{ t.abiertaPor }}</small>
+                  </td>
+                  <td>
+                    @if (t.cerradaEn) {
+                      {{ fechaHora(t.cerradaEn) }}
+                    }
+                    <small class="persona">{{ t.cerradaPor }}</small>
+                  </td>
+                  <td class="derecha numero">
+                    {{ soles(t.totalVentas ?? 0) }}
+                    <small class="persona">{{ t.numVentas ?? 0 }} cuentas</small>
+                  </td>
+                  <td class="derecha numero">{{ soles(t.efectivoEsperado ?? 0) }}</td>
+                  <td class="derecha numero">{{ soles(t.efectivoContado ?? 0) }}</td>
+                  <td class="derecha numero">
+                    <span [class]="claseDiferencia(t.diferencia)">{{ soles(t.diferencia ?? 0) }}</span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+}
+
+<dialog #dlgMovimiento aria-labelledby="titulo-movimiento">
+  <form [formGroup]="formMovimiento" (ngSubmit)="guardarMovimiento()" novalidate>
+    <h2 id="titulo-movimiento">{{ tipoMovimiento() === 'INGRESO' ? 'Registrar ingreso' : 'Registrar egreso' }}</h2>
+    <p class="ayuda-dialogo">
+      @if (tipoMovimiento() === 'INGRESO') {
+        Dinero que entra al cajón y no es una venta, por ejemplo cambio que traes de banco.
+      } @else {
+        Dinero que sale del cajón, por ejemplo una compra de hielo o un retiro de efectivo.
+      }
+    </p>
+
+    @if (errorMovimiento()) {
+      <p class="mensaje error" role="alert">{{ errorMovimiento() }}</p>
+    }
+
+    <div class="campo">
+      <label for="m-concepto">Motivo</label>
+      <input id="m-concepto" type="text" formControlName="concepto" autocomplete="off" maxlength="120" />
+      @if (formMovimiento.controls.concepto.invalid && formMovimiento.controls.concepto.touched) {
+        <small class="aviso">Escribe el motivo del movimiento</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="m-monto">Monto (S/)</label>
+      <input id="m-monto" type="text" inputmode="decimal" formControlName="monto" autocomplete="off" />
+      @if (formMovimiento.controls.monto.invalid && formMovimiento.controls.monto.touched) {
+        <small class="aviso">Escribe un monto válido, por ejemplo 20 o 20.50</small>
+      }
+    </div>
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrarMovimiento()">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="ocupado()">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog #dlgCierre aria-labelledby="titulo-cierre">
+  <form [formGroup]="formCierre" (ngSubmit)="cerrarCaja()" novalidate>
+    <h2 id="titulo-cierre">Cerrar caja</h2>
+
+    @if (resumen(); as r) {
+      <p class="ayuda-dialogo">Cuenta el efectivo que hay en el cajón y escríbelo aquí.</p>
+
+      <p class="esperado">
+        <span>Debe haber</span>
+        <strong>{{ soles(r.efectivoEsperado) }}</strong>
+      </p>
+
+      @if (r.cuentasAbiertas > 0) {
+        <p class="mensaje atencion">
+          Todavía hay {{ r.cuentasAbiertas }} {{ r.cuentasAbiertas === 1 ? 'cuenta abierta' : 'cuentas abiertas' }}.
+          Si las cobras después, entrarán en la próxima caja.
+        </p>
+      }
+    }
+
+    @if (errorCierre()) {
+      <p class="mensaje error" role="alert">{{ errorCierre() }}</p>
+    }
+
+    <div class="campo">
+      <label for="c-contado">Efectivo contado (S/)</label>
+      <input
+        id="c-contado"
+        type="text"
+        inputmode="decimal"
+        formControlName="contado"
+        autocomplete="off"
+        (input)="escribirContado($any($event.target).value)"
+      />
+      @if (formCierre.controls.contado.invalid && formCierre.controls.contado.touched) {
+        <small class="aviso">Escribe un monto válido, por ejemplo 350 o 350.50 (puede ser 0)</small>
+      } @else if (diferencia() !== null) {
+        <small class="diferencia" [class]="claseDiferencia(diferencia())" role="status">
+          {{ textoDiferencia(diferencia()) }}
+        </small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="c-nota">Nota (opcional)</label>
+      <input id="c-nota" type="text" formControlName="nota" autocomplete="off" maxlength="200" />
+    </div>
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cancelarCierre()">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="ocupado()">
+        {{ ocupado() ? 'Cerrando…' : 'Cerrar caja' }}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<app-anular-venta (anulada)="alAnular($event)" (desactualizada)="cargar(true)" />

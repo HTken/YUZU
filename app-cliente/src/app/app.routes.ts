@@ -1,8 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth.guard';
-
-const seccion = () => import('./pages/seccion/seccion').then((m) => m.Seccion);
+import { soloRoles } from './core/rol.guard';
 
 export const routes: Routes = [
   {
@@ -21,32 +20,44 @@ export const routes: Routes = [
       },
       {
         path: 'mesas',
-        loadComponent: seccion,
-        data: { titulo: 'Mesas', descripcion: 'Salones, mesas y pedidos en curso.' },
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () => import('./pages/salon/salon').then((m) => m.SalonMesas),
+          },
+          {
+            path: ':mesaId',
+            loadComponent: () => import('./pages/salon/pedido').then((m) => m.PedidoMesa),
+          },
+        ],
+      },
+      {
+        path: 'cocina',
+        loadComponent: () => import('./pages/cocina/cocina').then((m) => m.Cocina),
       },
       {
         path: 'caja',
-        loadComponent: seccion,
-        data: {
-          titulo: 'Caja',
-          descripcion: 'Apertura y cierre, ingresos, egresos y ventas del día.',
-        },
+        loadComponent: () => import('./pages/caja/caja').then((m) => m.Caja),
       },
       {
         path: 'inventario',
-        loadComponent: seccion,
-        data: {
-          titulo: 'Inventario',
-          descripcion: 'Stock, entradas y salidas de insumos y productos.',
-        },
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () => import('./pages/inventario/inventario').then((m) => m.Inventario),
+          },
+          {
+            path: 'recetas',
+            loadComponent: () => import('./pages/inventario/recetas').then((m) => m.Recetas),
+          },
+        ],
       },
       {
         path: 'informes',
-        loadComponent: seccion,
-        data: {
-          titulo: 'Informes',
-          descripcion: 'Ventas, compras, finanzas y operaciones.',
-        },
+        canActivate: [soloRoles('ADMIN')],
+        loadComponent: () => import('./pages/informes/informes').then((m) => m.Informes),
       },
       {
         path: 'configuracion',
@@ -65,6 +76,15 @@ export const routes: Routes = [
           {
             path: 'plan',
             loadComponent: () => import('./pages/configuracion/plan/plan').then((m) => m.Plan),
+          },
+          {
+            path: 'productos',
+            loadComponent: () =>
+              import('./pages/configuracion/productos/productos').then((m) => m.Productos),
+          },
+          {
+            path: 'mesas',
+            loadComponent: () => import('./pages/configuracion/mesas/mesas').then((m) => m.Mesas),
           },
         ],
       },

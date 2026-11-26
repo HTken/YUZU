@@ -33,6 +33,15 @@ public class Plan {
     @Column(name = "max_usuarios", nullable = false)
     private int maxUsuarios;
 
+    @Column(name = "max_productos", nullable = false)
+    private int maxProductos;
+
+    @Column(name = "max_mesas", nullable = false)
+    private int maxMesas;
+
+    @Column(name = "max_insumos", nullable = false)
+    private int maxInsumos;
+
     @Column(nullable = false)
     private boolean activo = true;
 }

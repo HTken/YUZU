@@ -1,0 +1,310 @@
+<header class="cabecera">
+  <h1>Informes</h1>
+  <p class="descripcion">
+    Cómo van tus ventas, tus productos y tus insumos. Los días se cuentan de 00:00 a 23:59, hora de Lima.
+  </p>
+</header>
+
+<!-- ===================== Periodo: un solo filtro para todo el informe ===================== -->
+<section class="filtros" aria-label="Periodo del informe">
+  <div class="presets" role="group" aria-label="Elegir periodo">
+    @for (p of presets; track p.valor) {
+      <button
+        type="button"
+        class="chip"
+        [class.seleccionado]="preset() === p.valor"
+        [attr.aria-pressed]="preset() === p.valor"
+        (click)="elegirPreset(p.valor)"
+      >
+        {{ p.etiqueta }}
+      </button>
+    }
+  </div>
+
+  @if (preset() === 'PERSONALIZADO') {
+    <form class="personalizado" (submit)="$event.preventDefault(); aplicarPersonalizado()" novalidate>
+      <div class="campo">
+        <label for="inf-desde">Desde</label>
+        <input
+          id="inf-desde"
+          type="date"
+          [min]="fechaMinima"
+          [max]="fechaMaxima"
+          [value]="desde()"
+          (input)="desde.set($any($event.target).value)"
+        />
+      </div>
+      <div class="campo">
+        <label for="inf-hasta">Hasta</label>
+        <input
+          id="inf-hasta"
+          type="date"
+          [min]="fechaMinima"
+          [max]="fechaMaxima"
+          [value]="hasta()"
+          (input)="hasta.set($any($event.target).value)"
+        />
+      </div>
+      <button type="submit" class="primario" [disabled]="errorRango() !== ''">Ver informe</button>
+    </form>
+    @if (errorRango()) {
+      <p class="error" role="alert">{{ errorRango() }}</p>
+    } @else {
+      <p class="ayuda">Puedes ver hasta {{ maximoDias }} días (un año) a la vez.</p>
+    }
+  }
+
+  <p class="rango" aria-live="polite">
+    @if (rotulo()) {
+      Mostrando: <strong>{{ rotulo() }}</strong>
+    }
+    @if (cargandoVentas() || cargandoInsumos()) {
+      <span class="actualizando">Actualizando…</span>
+    }
+  </p>
+</section>
+
+<!-- ===================== Ventas ===================== -->
+<div class="informe" [class.atenuado]="actualizandoVentas()" [attr.aria-busy]="cargandoVentas()">
+  @if (ventas(); as v) {
+    <section aria-labelledby="t-resumen">
+      <h2 id="t-resumen" class="oculto">Resumen de ventas</h2>
+      <div class="tiles">
+        <div class="tile principal">
+          <p class="etiqueta">Total vendido</p>
+          <p class="valor">{{ dinero(v.total) }}</p>
+        </div>
+        <div class="tile">
+          <p class="etiqueta">Ventas (cuentas cobradas)</p>
+          <p class="valor">{{ v.ventas }}</p>
+        </div>
+        <div class="tile">
+          <p class="etiqueta">Venta promedio por cuenta</p>
+          <p class="valor">{{ dinero(v.ticketPromedio) }}</p>
+        </div>
+        <div class="tile">
+          <p class="etiqueta">Cuentas anuladas</p>
+          <p class="valor">{{ v.cuentasAnuladas + v.ventasAnuladas }}</p>
+          @if (v.ventasAnuladas > 0) {
+            <p class="etiqueta">
+              {{ v.ventasAnuladas === 1 ? '1 ya estaba cobrada' : v.ventasAnuladas + ' ya estaban cobradas' }}
+            </p>
+          }
+        </div>
+      </div>
+    </section>
+
+    @if (v.ventas === 0) {
+      <p class="aviso-estado">No hay ventas cobradas en este periodo.</p>
+    } @else {
+      <section class="bloque" aria-labelledby="t-dias">
+        <h2 id="t-dias">Ventas por día</h2>
+        <div class="tabla-contenedor desplazable" tabindex="0" role="region" aria-labelledby="t-dias">
+          <table>
+            <caption class="oculto">
+              Ventas por día del periodo
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Día</th>
+                <th scope="col" class="num">Ventas</th>
+                <th scope="col" class="num">Total</th>
+                <th scope="col" class="col-barra"><span class="oculto">Gráfico</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of filasDias(); track d.fecha) {
+                <tr [class.sin-ventas]="d.ventas === 0" [title]="d.etiqueta + ': ' + d.ventas + ' ventas, ' + dinero(d.total)">
+                  <th scope="row">
+                    {{ d.etiqueta }}
+                    <div class="pista solo-movil" aria-hidden="true">
+                      <div class="barra" [style.width.%]="d.ancho"></div>
+                    </div>
+                  </th>
+                  <td class="num">{{ d.ventas === 0 ? '—' : d.ventas }}</td>
+                  <td class="num">{{ d.ventas === 0 ? '—' : dinero(d.total) }}</td>
+                  <td class="col-barra">
+                    <div class="pista" aria-hidden="true">
+                      <div class="barra" [style.width.%]="d.ancho"></div>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="bloque" aria-labelledby="t-metodos">
+        <h2 id="t-metodos">Cómo pagaron</h2>
+        <ul class="lista-barras">
+          @for (m of filasMetodos(); track m.metodo) {
+            <li [title]="m.etiqueta + ': ' + dinero(m.total)">
+              <span class="nombre-barra">{{ m.etiqueta }}</span>
+              <div class="pista" aria-hidden="true">
+                <div class="barra" [style.width.%]="m.ancho"></div>
+              </div>
+              <span class="valor-barra">
+                <strong>{{ dinero(m.total) }}</strong>
+                @if (m.porcentaje) {
+                  <span class="suave">{{ m.porcentaje }}</span>
+                }
+                <span class="suave">· {{ m.cuentas === 1 ? '1 cuenta' : m.cuentas + ' cuentas' }}</span>
+              </span>
+            </li>
+          }
+        </ul>
+        <p class="nota">Si una cuenta se pagó con dos métodos, cuenta en los dos.</p>
+      </section>
+
+      <section class="bloque" aria-labelledby="t-productos">
+        <div class="titulo-bloque">
+          <h2 id="t-productos">Productos más vendidos</h2>
+          <div class="filtros-bloque" role="group" aria-label="Ordenar productos">
+            <button
+              type="button"
+              class="chip chico"
+              [class.seleccionado]="criterio() === 'CANTIDAD'"
+              [attr.aria-pressed]="criterio() === 'CANTIDAD'"
+              (click)="elegirCriterio('CANTIDAD')"
+            >
+              Por unidades
+            </button>
+            <button
+              type="button"
+              class="chip chico"
+              [class.seleccionado]="criterio() === 'IMPORTE'"
+              [attr.aria-pressed]="criterio() === 'IMPORTE'"
+              (click)="elegirCriterio('IMPORTE')"
+            >
+              Por importe
+            </button>
+          </div>
+        </div>
+
+        <div class="tabla-contenedor">
+          <table>
+            <caption class="oculto">
+              Productos vendidos en el periodo
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" class="puesto">N°</th>
+                <th scope="col">Producto</th>
+                <th scope="col" class="num">Unidades</th>
+                <th scope="col" class="num">Importe</th>
+                <th scope="col" class="col-barra"><span class="oculto">Gráfico</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of filasProductos(); track p.productoId) {
+                <tr [title]="p.nombre + ': ' + p.cantidad + ' unidades, ' + dinero(p.importe)">
+                  <td class="puesto">{{ p.puesto }}</td>
+                  <th scope="row">
+                    <span class="nombre">{{ p.nombre }}</span>
+                    <span class="categoria">{{ p.categoria }}</span>
+                    <div class="pista solo-movil" aria-hidden="true">
+                      <div class="barra" [style.width.%]="p.ancho"></div>
+                    </div>
+                  </th>
+                  <td class="num">{{ p.cantidad }}</td>
+                  <td class="num">{{ dinero(p.importe) }}</td>
+                  <td class="col-barra">
+                    <div class="pista" aria-hidden="true">
+                      <div class="barra" [style.width.%]="p.ancho"></div>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (totalProductos() > limiteProductos) {
+          <button type="button" class="enlace" (click)="verTodos.set(!verTodos())">
+            {{ verTodos() ? 'Ver solo los ' + limiteProductos + ' primeros' : 'Ver todos (' + totalProductos() + ')' }}
+          </button>
+        }
+        <p class="nota">El importe es lo vendido a los precios de cada cuenta. No incluye los platos anulados ni las ventas anuladas.</p>
+      </section>
+    }
+  } @else if (cargandoVentas()) {
+    <p class="aviso-estado">Cargando el informe…</p>
+  } @else if (errorVentas()) {
+    <div class="aviso-estado con-error" role="alert">
+      <p>{{ errorVentas() }}</p>
+      <button type="button" class="secundario" (click)="reintentar()">Reintentar</button>
+    </div>
+  }
+</div>
+
+<!-- ===================== Insumos ===================== -->
+<div class="informe" [class.atenuado]="actualizandoInsumos()" [attr.aria-busy]="cargandoInsumos()">
+  @if (insumos(); as i) {
+    <section class="bloque" aria-labelledby="t-insumos">
+      <h2 id="t-insumos">Insumos</h2>
+
+      <div class="tiles dos">
+        <div class="tile">
+          <p class="etiqueta">Compras de insumos</p>
+          <p class="valor">{{ dinero(i.compras) }}</p>
+        </div>
+        <div class="tile">
+          <p class="etiqueta">Insumos con faltante</p>
+          <p class="valor">{{ i.insumosConFaltante }}</p>
+        </div>
+      </div>
+
+      @if (i.insumos.length === 0) {
+        <p class="aviso-estado">
+          No hubo consumo, mermas ni entradas de insumos en este periodo. Para que las ventas descuenten insumos,
+          crea las <a routerLink="/inventario/recetas">recetas</a>.
+        </p>
+      } @else {
+        <div class="tabla-contenedor">
+          <table class="ancha">
+            <caption class="oculto">
+              Insumos del periodo
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Insumo</th>
+                <th scope="col" class="num">Consumo por ventas</th>
+                <th scope="col" class="num">Mermas</th>
+                <th scope="col" class="num">Entradas</th>
+                <th scope="col" class="num">Compras</th>
+                <th scope="col" class="num">Faltante</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (x of i.insumos; track x.insumoId) {
+                <tr>
+                  <th scope="row">{{ x.nombre }}</th>
+                  <td class="num">{{ x.consumo !== 0 ? conUnidad(x.consumo, x.unidad) : '—' }}</td>
+                  <td class="num">{{ x.merma > 0 ? conUnidad(x.merma, x.unidad) : '—' }}</td>
+                  <td class="num">{{ x.entradas > 0 ? conUnidad(x.entradas, x.unidad) : '—' }}</td>
+                  <td class="num">{{ x.compras > 0 ? dinero(x.compras) : '—' }}</td>
+                  <td class="num" [class.alerta]="x.faltante > 0">
+                    {{ x.faltante > 0 ? conUnidad(x.faltante, x.unidad) : '—' }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="nota">
+          Faltante: lo que se vendió cuando el stock registrado no alcanzaba. Si aparece, cuenta lo que hay de verdad
+          y haz un ajuste en <a routerLink="/inventario">Inventario</a>. Si anulaste una venta y devolviste sus insumos,
+          esa devolución se resta del consumo. Las salidas manuales y los ajustes no se incluyen aquí.
+        </p>
+      }
+    </section>
+  } @else if (cargandoInsumos()) {
+    <p class="aviso-estado">Cargando los insumos…</p>
+  } @else if (errorInsumos()) {
+    <div class="aviso-estado con-error" role="alert">
+      <p>{{ errorInsumos() }}</p>
+      <button type="button" class="secundario" (click)="reintentar()">Reintentar</button>
+    </div>
+  }
+</div>

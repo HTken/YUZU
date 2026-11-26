@@ -8,6 +8,12 @@ export interface MiPlan {
   precioMensual: number;
   maxUsuarios: number;
   usuariosActivos: number;
+  maxProductos: number;
+  productosActivos: number;
+  maxMesas: number;
+  mesasActivas: number;
+  maxInsumos: number;
+  insumosActivos: number;
   /** Fecha en formato 2026-12-14. */
   venceEn: string;
   diasRestantes: number;

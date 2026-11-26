@@ -1,0 +1,72 @@
+<dialog #dlg aria-labelledby="titulo-anular">
+  <form [formGroup]="form" (ngSubmit)="confirmar()" novalidate>
+    @if (venta(); as v) {
+      <h2 id="titulo-anular">Anular la venta {{ ticketNumero(v.ticket) }}</h2>
+      <p class="ayuda-dialogo">
+        {{ v.mesa }} · {{ soles(v.total) }}. La venta deja de contar en la caja y en los informes. No se puede
+        deshacer.
+      </p>
+
+      <div class="devolver" aria-live="polite">
+        @if (efectivo() > 0) {
+          <p>
+            <strong>Del cajón sale {{ soles(efectivo()) }}</strong> en efectivo: devuélvelo al cliente.
+          </p>
+        }
+        @if (otrosPagos().length > 0) {
+          <p>
+            Lo pagado con
+            @for (p of otrosPagos(); track p.metodo; let ultimo = $last) {
+              {{ etiquetaMetodo(p.metodo) }} {{ soles(p.monto) }}{{ ultimo ? '' : ', ' }}
+            }
+            hay que devolverlo por ese mismo medio: el sistema no lo hace.
+          </p>
+        }
+      </div>
+    }
+
+    @if (error()) {
+      <p class="mensaje error" role="alert">{{ error() }}</p>
+    }
+
+    <div class="campo">
+      <label for="an-motivo">Motivo de la anulación</label>
+      <input
+        id="an-motivo"
+        type="text"
+        formControlName="motivo"
+        autocomplete="off"
+        maxlength="200"
+        [attr.aria-invalid]="form.controls.motivo.touched && motivoInvalido()"
+      />
+      @if (form.controls.motivo.touched && motivoInvalido()) {
+        <small class="aviso">Escribe el motivo (al menos 3 letras). Queda registrado con tu nombre.</small>
+      } @else {
+        <small class="ayuda">Queda registrado con tu nombre y la hora.</small>
+      }
+      <div class="motivos" role="group" aria-label="Motivos frecuentes">
+        @for (m of motivosFrecuentes; track m) {
+          <button type="button" class="chip" (click)="usarMotivo(m)">{{ m }}</button>
+        }
+      </div>
+    </div>
+
+    <div class="opcion">
+      <input id="an-insumos" type="checkbox" formControlName="devolverInsumos" />
+      <label for="an-insumos">
+        Devolver los insumos al stock
+        <small>
+          Márcalo si el plato no se llegó a preparar (cobro duplicado o equivocado). Si ya se cocinó, déjalo sin
+          marcar: el stock se queda como está.
+        </small>
+      </label>
+    </div>
+
+    <div class="botones">
+      <button type="button" class="secundario" [disabled]="ocupado()" (click)="cancelar()">No anular</button>
+      <button type="submit" class="peligro" [disabled]="ocupado()">
+        {{ ocupado() ? 'Anulando…' : 'Anular venta' }}
+      </button>
+    </div>
+  </form>
+</dialog>

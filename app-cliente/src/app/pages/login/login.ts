@@ -45,8 +45,9 @@ export class Login {
     this.error.set('');
 
     this.auth.login(this.form.getRawValue()).subscribe({
-      next: () => {
-        void this.router.navigateByUrl('/');
+      next: (sesion) => {
+        // El personal de cocina entra directo a su pantalla.
+        void this.router.navigateByUrl(sesion.rol === 'COCINA' ? '/cocina' : '/');
       },
       error: (e: HttpErrorResponse) => {
         this.cargando.set(false);

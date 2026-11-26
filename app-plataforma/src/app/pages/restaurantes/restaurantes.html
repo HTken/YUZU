@@ -141,7 +141,7 @@
             <label for="n-plan">Plan</label>
             <select id="n-plan" formControlName="planId">
               @for (p of planesActivos(); track p.id) {
-                <option [ngValue]="p.id">{{ p.nombre }} ({{ p.maxUsuarios }} usuarios)</option>
+                <option [ngValue]="p.id">{{ p.nombre }} ({{ p.maxUsuarios }} usuarios, {{ p.maxProductos }} productos, {{ p.maxMesas }} mesas, {{ p.maxInsumos }} insumos)</option>
               }
             </select>
           </div>
@@ -258,7 +258,7 @@
           <select id="p-plan" formControlName="planId">
             @for (p of planesActivos(); track p.id) {
               <option [ngValue]="p.id">
-                {{ p.nombre }}: {{ p.maxUsuarios }} usuarios, S/ {{ p.precioMensual.toFixed(2) }} al mes
+                {{ p.nombre }}: {{ p.maxUsuarios }} usuarios, {{ p.maxProductos }} productos, {{ p.maxMesas }} mesas, {{ p.maxInsumos }} insumos, S/ {{ p.precioMensual.toFixed(2) }} al mes
               </option>
             }
           </select>

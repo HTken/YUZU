@@ -1,0 +1,213 @@
+<header class="cabecera">
+  <div>
+    <a routerLink="/inventario" class="volver">Inventario</a>
+    <h1>Recetas</h1>
+    <p class="descripcion">
+      Indica qué insumos gasta cada producto. Al cobrar una cuenta, el sistema descuenta esos insumos del
+      inventario. Un producto sin receta no descuenta nada.
+    </p>
+  </div>
+</header>
+
+<div class="avisos" aria-live="polite">
+  @if (aviso()) {
+    <p class="aviso-ok">
+      <span>{{ aviso() }}</span>
+      <button type="button" class="enlace" (click)="aviso.set('')">
+        Entendido<span class="oculto"> y cerrar este mensaje</span>
+      </button>
+    </p>
+  }
+</div>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando las recetas…</p>
+} @else if (errorLista()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorLista() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (conteo().todos === 0) {
+  <p class="aviso-estado">
+    Todavía no tienes productos activos. Créalos primero en
+    <a routerLink="/configuracion/productos">Configuración → Productos</a>.
+  </p>
+} @else if (insumos().length === 0) {
+  <p class="aviso-estado">
+    Para hacer una receta primero necesitas tus insumos. Créalos en
+    <a routerLink="/inventario">Inventario</a>.
+  </p>
+} @else {
+  <div class="herramientas">
+    <div class="filtros" role="group" aria-label="Mostrar">
+      <button
+        type="button"
+        class="chip"
+        [class.seleccionado]="filtro() === 'TODOS'"
+        [attr.aria-pressed]="filtro() === 'TODOS'"
+        (click)="elegirFiltro('TODOS')"
+      >
+        Todos <span class="cuenta">{{ conteo().todos }}</span>
+      </button>
+      <button
+        type="button"
+        class="chip"
+        [class.seleccionado]="filtro() === 'SIN'"
+        [attr.aria-pressed]="filtro() === 'SIN'"
+        (click)="elegirFiltro('SIN')"
+      >
+        Sin receta <span class="cuenta">{{ conteo().sin }}</span>
+      </button>
+      <button
+        type="button"
+        class="chip"
+        [class.seleccionado]="filtro() === 'CON'"
+        [attr.aria-pressed]="filtro() === 'CON'"
+        (click)="elegirFiltro('CON')"
+      >
+        Con receta <span class="cuenta">{{ conteo().con }}</span>
+      </button>
+    </div>
+
+    <div class="buscador">
+      <label for="buscar" class="oculto">Buscar un producto</label>
+      <input
+        id="buscar"
+        type="search"
+        placeholder="Buscar producto"
+        autocomplete="off"
+        [value]="busqueda()"
+        (input)="buscar($any($event.target).value)"
+      />
+    </div>
+  </div>
+
+  @if (visibles().length === 0) {
+    <p class="aviso-estado">
+      @if (busqueda().trim() !== '') {
+        Ningún producto coincide con "{{ busqueda().trim() }}".
+      } @else if (filtro() === 'SIN') {
+        Todos tus productos ya tienen receta.
+      } @else {
+        Todavía no hay productos con receta.
+      }
+    </p>
+  } @else {
+    <div class="tabla-contenedor">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Producto</th>
+            <th scope="col">Categoría</th>
+            <th scope="col">Receta</th>
+            <th scope="col"><span class="oculto">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of visibles(); track p.id) {
+            <tr>
+              <td>
+                <span class="nombre">{{ p.nombre }}</span>
+              </td>
+              <td class="suave">{{ p.categoria }}</td>
+              <td>
+                <span class="estado-receta" [attr.data-tiene]="textoReceta(p) !== 'Sin receta'">
+                  {{ textoReceta(p) }}
+                </span>
+              </td>
+              <td class="acciones">
+                <button type="button" class="enlace" (click)="editar(p)">
+                  {{ textoReceta(p) === 'Sin receta' ? 'Crear receta' : 'Editar receta'
+                  }}<span class="oculto"> de {{ p.nombre }}</span>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+<!-- ===================== Editar la receta de un producto ===================== -->
+<dialog #dlgReceta class="ancho" aria-labelledby="titulo-receta">
+  @if (producto(); as p) {
+    <form (submit)="$event.preventDefault(); guardar()" novalidate>
+      <h2 id="titulo-receta">Receta de {{ p.nombre }}</h2>
+      <p class="explicacion">
+        Escribe cuánto de cada insumo gasta <strong>una unidad</strong> de este producto. Por ejemplo, para un
+        1/4 de pollo: Pollo, 0.25 (si el pollo se cuenta por unidades). Se descuenta al cobrar la cuenta.
+      </p>
+
+      @if (cargandoReceta()) {
+        <p class="vacio">Cargando la receta…</p>
+      } @else {
+        @if (lineas().length === 0) {
+          <p class="vacio">Esta receta todavía no tiene insumos. Agrega el primero.</p>
+        }
+
+        @for (l of lineas(); track $index; let indice = $index) {
+          <div class="linea">
+            <div class="campo-linea">
+              <label [for]="'r-insumo-' + indice" class="oculto">Insumo {{ indice + 1 }}</label>
+              <select
+                [id]="'r-insumo-' + indice"
+                (change)="elegirInsumo(indice, $any($event.target).value)"
+              >
+                <option value="" [selected]="l.insumoId === null">Elige un insumo</option>
+                @for (o of opcionesPara(indice); track o.id) {
+                  <option [value]="o.id" [selected]="o.id === l.insumoId">
+                    {{ o.nombre }} ({{ abreviatura(o.unidad) }}){{ o.activo ? '' : ' — inactivo' }}
+                  </option>
+                }
+              </select>
+            </div>
+            <div class="campo-linea cantidad-linea">
+              <label [for]="'r-cantidad-' + indice" class="oculto">
+                Cantidad {{ indice + 1 }}{{ unidadDe(l.insumoId) ? ' (' + unidadDe(l.insumoId) + ')' : '' }}
+              </label>
+              <input
+                [id]="'r-cantidad-' + indice"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="0.00"
+                [value]="l.cantidad"
+                (input)="escribirCantidad(indice, $any($event.target).value)"
+              />
+              <span class="unidad" aria-hidden="true">{{ unidadDe(l.insumoId) }}</span>
+            </div>
+            <button type="button" class="quitar" (click)="quitarLinea(indice)">
+              Quitar<span class="oculto"> el insumo {{ indice + 1 }}</span>
+            </button>
+          </div>
+        }
+
+        <div class="agregar">
+          <button
+            type="button"
+            class="secundario"
+            [disabled]="!quedanInsumos() || lineas().length >= maximoLineas"
+            (click)="agregarLinea()"
+          >
+            Agregar insumo
+          </button>
+          @if (!quedanInsumos() && lineas().length > 0) {
+            <small class="ayuda">Ya usaste todos tus insumos activos.</small>
+          }
+        </div>
+      }
+
+      @if (errorForm()) {
+        <p class="error" role="alert">{{ errorForm() }}</p>
+      }
+
+      <div class="botones">
+        <button type="button" class="secundario" (click)="cerrar(dlgReceta)">Cancelar</button>
+        <button type="submit" class="primario" [disabled]="guardando() || cargandoReceta()">
+          {{ guardando() ? 'Guardando…' : 'Guardar receta' }}
+        </button>
+      </div>
+    </form>
+  }
+</dialog>

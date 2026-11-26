@@ -1,0 +1,267 @@
+<header class="cabecera">
+  <div>
+    <a routerLink="/configuracion" class="volver">Configuración</a>
+    <h1>Productos</h1>
+    <p class="descripcion">La carta de tu restaurante: categorías, precios y qué se puede vender.</p>
+  </div>
+  @if (esAdmin()) {
+    <div class="acciones-cabecera">
+      <button type="button" class="secundario" (click)="nuevaCategoria()">Nueva categoría</button>
+      <button
+        type="button"
+        class="primario"
+        [disabled]="categoriasActivas().length === 0"
+        (click)="nuevoProducto()"
+      >
+        Nuevo producto
+      </button>
+    </div>
+  }
+</header>
+
+@if (planes.plan(); as p) {
+  <p class="cupo" [class.lleno]="p.productosActivos >= p.maxProductos">
+    Productos activos: <strong>{{ p.productosActivos }} de {{ p.maxProductos }}</strong>
+    <span class="cupo-plan">(plan {{ p.plan }})</span>
+  </p>
+}
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando la carta…</p>
+} @else if (errorLista()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorLista() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else {
+  <div class="distribucion">
+    <aside class="panel-categorias" aria-label="Categorías">
+      <h2 class="subtitulo">Categorías</h2>
+
+      @if (categorias().length === 0) {
+        <p class="vacio">
+          @if (esAdmin()) {
+            Aún no tienes categorías. Crea la primera, por ejemplo "Entradas" o "Bebidas", para empezar a armar tu carta.
+          } @else {
+            Todavía no hay categorías en la carta.
+          }
+        </p>
+      } @else {
+        <ul class="categorias">
+          <li>
+            <button
+              type="button"
+              class="filtro"
+              [class.seleccionado]="filtro() === null"
+              [attr.aria-pressed]="filtro() === null"
+              (click)="filtrar(null)"
+            >
+              <span>Todas</span>
+              <span class="cuenta">{{ productos().length }}</span>
+            </button>
+          </li>
+          @for (c of categorias(); track c.id) {
+            <li class="fila-categoria">
+              <button
+                type="button"
+                class="filtro"
+                [class.seleccionado]="filtro() === c.id"
+                [attr.aria-pressed]="filtro() === c.id"
+                (click)="filtrar(c.id)"
+              >
+                <span>
+                  {{ c.nombre }}
+                  @if (!c.activo) {
+                    <span class="etiqueta-inactiva">inactiva</span>
+                  }
+                  @if (!c.pasaPorCocina) {
+                    <span class="etiqueta-inactiva">sin cocina</span>
+                  }
+                </span>
+                <span class="cuenta">{{ c.productos }}</span>
+              </button>
+              @if (esAdmin()) {
+                <button type="button" class="enlace" (click)="editarCategoria(c)">
+                  Editar<span class="oculto"> la categoría {{ c.nombre }}</span>
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+
+    <section class="panel-productos" aria-label="Productos">
+      @if (productosFiltrados().length === 0) {
+        <p class="aviso-estado">
+          @if (categorias().length === 0) {
+            Cuando crees una categoría podrás agregar tus productos aquí.
+          } @else if (filtro() !== null) {
+            Esta categoría todavía no tiene productos.
+          } @else {
+            Aún no hay productos en la carta.
+          }
+        </p>
+      } @else {
+        <div class="tabla-contenedor">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Producto</th>
+                <th scope="col">Categoría</th>
+                <th scope="col" class="derecha">Precio</th>
+                <th scope="col">Estado</th>
+                @if (esAdmin()) {
+                  <th scope="col"><span class="oculto">Acciones</span></th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of productosFiltrados(); track p.id) {
+                <tr>
+                  <td>
+                    <span class="nombre">{{ p.nombre }}</span>
+                    @if (p.descripcion) {
+                      <small class="detalle">{{ p.descripcion }}</small>
+                    }
+                  </td>
+                  <td>{{ p.categoria }}</td>
+                  <td class="derecha precio">{{ soles(p.precio) }}</td>
+                  <td>
+                    <span class="estado" [class.inactivo]="!p.activo">
+                      {{ p.activo ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </td>
+                  @if (esAdmin()) {
+                    <td class="acciones">
+                      <button type="button" class="enlace" (click)="editarProducto(p)">
+                        Editar<span class="oculto"> {{ p.nombre }}</span>
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  </div>
+}
+
+<dialog #dlgCategoria aria-labelledby="titulo-categoria">
+  <form [formGroup]="formCategoria" (ngSubmit)="guardarCategoria()" novalidate>
+    <h2 id="titulo-categoria">{{ editandoCategoria() ? 'Editar categoría' : 'Nueva categoría' }}</h2>
+
+    <div class="campo">
+      <label for="c-nombre">Nombre</label>
+      <input id="c-nombre" type="text" formControlName="nombre" autocomplete="off" />
+      @if (formCategoria.controls.nombre.touched && formCategoria.controls.nombre.invalid) {
+        <small class="aviso">Escribe el nombre de la categoría (máximo 80 caracteres)</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="c-orden">Posición en la carta</label>
+      <input id="c-orden" type="number" inputmode="numeric" min="0" max="9999" step="1" formControlName="orden" />
+      @if (formCategoria.controls.orden.touched && formCategoria.controls.orden.invalid) {
+        <small class="aviso">Escribe un número entero entre 0 y 9999</small>
+      } @else {
+        <small class="ayuda">Las categorías se muestran de menor a mayor número.</small>
+      }
+    </div>
+
+    <label class="marca-check">
+      <input type="checkbox" formControlName="activo" />
+      Categoría activa
+    </label>
+
+    <label class="marca-check">
+      <input type="checkbox" formControlName="pasaPorCocina" />
+      Pasa por cocina
+    </label>
+    <p class="ayuda aparte">
+      Desmárcala en categorías como las bebidas: sus productos no aparecen en la pantalla de cocina y
+      quedan listos para servir apenas el mozo envía la cuenta.
+    </p>
+
+    @if (errorForm()) {
+      <p class="error" role="alert">{{ errorForm() }}</p>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrar(dlgCategoria)">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<dialog #dlgProducto aria-labelledby="titulo-producto">
+  <form [formGroup]="formProducto" (ngSubmit)="guardarProducto()" novalidate>
+    <h2 id="titulo-producto">{{ editandoProducto() ? 'Editar producto' : 'Nuevo producto' }}</h2>
+
+    <div class="campo">
+      <label for="p-categoria">Categoría</label>
+      <select id="p-categoria" formControlName="categoriaId">
+        <option [ngValue]="null" disabled>Elige una categoría</option>
+        @for (c of opcionesCategoria(); track c.id) {
+          <option [ngValue]="c.id">{{ c.nombre }}{{ c.activo ? '' : ' (inactiva)' }}</option>
+        }
+      </select>
+      @if (formProducto.controls.categoriaId.touched && formProducto.controls.categoriaId.invalid) {
+        <small class="aviso">Elige una categoría</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="p-nombre">Nombre</label>
+      <input id="p-nombre" type="text" formControlName="nombre" autocomplete="off" />
+      @if (formProducto.controls.nombre.touched && formProducto.controls.nombre.invalid) {
+        <small class="aviso">Escribe el nombre del producto (máximo 120 caracteres)</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="p-descripcion">Descripción (opcional)</label>
+      <textarea id="p-descripcion" rows="3" formControlName="descripcion"></textarea>
+      @if (formProducto.controls.descripcion.invalid) {
+        <small class="aviso">La descripción no puede pasar de 300 caracteres</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="p-precio">Precio (S/)</label>
+      <input
+        id="p-precio"
+        type="number"
+        inputmode="decimal"
+        min="0.01"
+        step="0.01"
+        formControlName="precio"
+        autocomplete="off"
+      />
+      @if (formProducto.controls.precio.touched && formProducto.controls.precio.invalid) {
+        <small class="aviso">Escribe un precio mayor que cero, con hasta 2 decimales</small>
+      }
+    </div>
+
+    <label class="marca-check">
+      <input type="checkbox" formControlName="activo" />
+      Disponible en la carta
+    </label>
+    <p class="ayuda aparte">Los productos activos cuentan para el límite de tu plan.</p>
+
+    @if (errorForm()) {
+      <p class="error" role="alert">{{ errorForm() }}</p>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrar(dlgProducto)">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </form>
+</dialog>

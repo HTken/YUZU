@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.yuzu.backend.catalogo.ProductoRepository;
 import com.yuzu.backend.config.SesionActual;
+import com.yuzu.backend.inventario.InsumoRepository;
+import com.yuzu.backend.mesa.MesaRepository;
 import com.yuzu.backend.pago.Pago;
 import com.yuzu.backend.pago.PagoRepository;
 import com.yuzu.backend.plan.Plan;
@@ -28,17 +31,26 @@ public class SuscripcionService {
     private final RestauranteRepository restaurantes;
     private final PlanRepository planes;
     private final UsuarioRepository usuarios;
+    private final ProductoRepository productos;
+    private final MesaRepository mesas;
+    private final InsumoRepository insumos;
     private final PagoRepository pagos;
     private final int diasGracia;
 
     public SuscripcionService(RestauranteRepository restaurantes,
                               PlanRepository planes,
                               UsuarioRepository usuarios,
+                              ProductoRepository productos,
+                              MesaRepository mesas,
+                              InsumoRepository insumos,
                               PagoRepository pagos,
                               @Value("${yuzu.suscripcion.dias-gracia:3}") int diasGracia) {
         this.restaurantes = restaurantes;
         this.planes = planes;
         this.usuarios = usuarios;
+        this.productos = productos;
+        this.mesas = mesas;
+        this.insumos = insumos;
         this.pagos = pagos;
         this.diasGracia = diasGracia;
     }
@@ -49,6 +61,9 @@ public class SuscripcionService {
         Plan plan = plan(restaurante);
 
         long activos = usuarios.countByRestauranteIdAndActivoTrue(restaurante.getId());
+        long productosActivos = productos.countByRestauranteIdAndActivoTrue(restaurante.getId());
+        long mesasActivas = mesas.countByRestauranteIdAndActivoTrue(restaurante.getId());
+        long insumosActivos = insumos.countByRestauranteIdAndActivoTrue(restaurante.getId());
         long dias = ChronoUnit.DAYS.between(LocalDate.now(LIMA), restaurante.getVenceEn());
 
         return new MiPlanDto(
@@ -56,6 +71,12 @@ public class SuscripcionService {
                 plan.getPrecioMensual(),
                 plan.getMaxUsuarios(),
                 (int) activos,
+                plan.getMaxProductos(),
+                (int) productosActivos,
+                plan.getMaxMesas(),
+                (int) mesasActivas,
+                plan.getMaxInsumos(),
+                (int) insumosActivos,
                 restaurante.getVenceEn().toString(),
                 (int) dias,
                 restaurante.getEstado());
@@ -71,6 +92,53 @@ public class SuscripcionService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Tu plan " + plan.getNombre() + " permite hasta " + plan.getMaxUsuarios()
                             + " usuarios activos. Desactiva a alguien o mejora tu plan.");
+        }
+    }
+
+    /** Falla si el restaurante ya usa todos los productos activos que permite su plan. */
+    public void exigirCupoDeProductos(Long restauranteId) {
+        Restaurante restaurante = restaurante(restauranteId);
+        Plan plan = plan(restaurante);
+
+        long activos = productos.countByRestauranteIdAndActivoTrue(restauranteId);
+        if (activos >= plan.getMaxProductos()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Tu plan " + plan.getNombre() + " permite hasta " + plan.getMaxProductos()
+                            + " productos activos. Desactiva alguno o mejora tu plan.");
+        }
+    }
+
+    /**
+     * Falla si agregar {@code adicionales} mesas activas pasaría el límite del plan.
+     * Se usa con 1 para una mesa y con N para crear varias de una vez.
+     */
+    public void exigirCupoDeMesas(Long restauranteId, int adicionales) {
+        Restaurante restaurante = restaurante(restauranteId);
+        Plan plan = plan(restaurante);
+
+        long activas = mesas.countByRestauranteIdAndActivoTrue(restauranteId);
+        if (activas + adicionales > plan.getMaxMesas()) {
+            long libres = Math.max(0, plan.getMaxMesas() - activas);
+            String mensaje = adicionales == 1
+                    ? "Tu plan " + plan.getNombre() + " permite hasta " + plan.getMaxMesas()
+                            + " mesas activas. Desactiva alguna o mejora tu plan."
+                    : "Tu plan " + plan.getNombre() + " permite hasta " + plan.getMaxMesas()
+                            + " mesas activas y ya tienes " + activas + ": solo puedes agregar " + libres
+                            + " más. Desactiva alguna o mejora tu plan.";
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, mensaje);
+        }
+    }
+
+    /** Falla si el restaurante ya usa todos los insumos activos que permite su plan. */
+    public void exigirCupoDeInsumos(Long restauranteId) {
+        Restaurante restaurante = restaurante(restauranteId);
+        Plan plan = plan(restaurante);
+
+        long activos = insumos.countByRestauranteIdAndActivoTrue(restauranteId);
+        if (activos >= plan.getMaxInsumos()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Tu plan " + plan.getNombre() + " permite hasta " + plan.getMaxInsumos()
+                            + " insumos activos. Desactiva alguno o mejora tu plan.");
         }
     }
 

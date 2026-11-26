@@ -8,6 +8,12 @@ public record MiPlanDto(
         BigDecimal precioMensual,
         int maxUsuarios,
         int usuariosActivos,
+        int maxProductos,
+        int productosActivos,
+        int maxMesas,
+        int mesasActivas,
+        int maxInsumos,
+        int insumosActivos,
         String venceEn,
         int diasRestantes,
         String estado) {

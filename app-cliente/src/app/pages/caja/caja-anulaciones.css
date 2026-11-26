@@ -1,0 +1,58 @@
+/*
+ * Estilos de lo que agrega la anulación de ventas a la pantalla de Caja. Van aparte de caja.css
+ * para no tocar los colores y ajustes que ya hiciste ahí.
+ */
+
+/* Botón "Anular" dentro de la tabla de cuentas cobradas. */
+.secundario.chico {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 0.9rem;
+}
+
+.secundario.chico.peligro {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.secundario.chico.peligro:hover:not(:disabled) {
+  background: #fdecea;
+}
+
+/*
+ * En pantallas angostas la tabla se desliza de lado; la columna del botón se queda fija a la derecha
+ * para que "Anular" siempre se vea sin tener que buscarlo.
+ */
+th.accion,
+td.accion {
+  position: sticky;
+  right: 0;
+  background: #fff;
+}
+
+@media (max-width: 880px) {
+  th.accion,
+  td.accion {
+    box-shadow: -8px 0 8px -8px rgba(0, 0, 0, 0.18);
+  }
+}
+
+.nota-tabla {
+  margin: 10px 4px 0;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+}
+
+/* Las ventas anuladas se leen como "ya no cuentan": apagadas y con el total tachado. */
+.anulada td {
+  color: var(--texto-suave);
+}
+
+.anulada .total-tachado {
+  text-decoration: line-through;
+}
+
+.motivo-anulacion {
+  max-width: 280px;
+  overflow-wrap: anywhere;
+}

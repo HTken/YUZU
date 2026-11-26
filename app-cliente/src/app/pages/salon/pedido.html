@@ -1,0 +1,363 @@
+<header class="cabecera">
+  <div>
+    <a routerLink="/mesas" class="volver">Mesas</a>
+    <h1>{{ mesa()?.nombre ?? 'Mesa' }}</h1>
+    @if (mesa(); as m) {
+      <p class="descripcion">
+        {{ m.salon }} · {{ m.capacidad }} {{ m.capacidad === 1 ? 'persona' : 'personas' }}
+        @if (pedido(); as p) {
+          · Atiende {{ p.mozo }} · {{ tiempo(p) }}
+        }
+      </p>
+    }
+  </div>
+  @if (mesa()) {
+    <button type="button" class="secundario" [disabled]="ocupado()" (click)="actualizar()">Actualizar cuenta</button>
+  }
+</header>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando la mesa…</p>
+} @else if (errorCarga()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorCarga() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else {
+  <div class="pantalla">
+    <section class="carta" aria-label="Carta">
+      <div class="busqueda">
+        <label class="oculto" for="buscar">Buscar un producto</label>
+        <input
+          id="buscar"
+          type="search"
+          placeholder="Buscar un producto…"
+          autocomplete="off"
+          [value]="busqueda()"
+          (input)="buscar($any($event.target).value)"
+        />
+      </div>
+
+      <div class="chips" role="group" aria-label="Categorías">
+        <button
+          type="button"
+          class="chip"
+          [class.elegida]="categoriaElegida() === null"
+          [attr.aria-pressed]="categoriaElegida() === null"
+          (click)="elegirCategoria(null)"
+        >
+          Todas
+        </button>
+        @for (c of categoriasConProductos(); track c.id) {
+          <button
+            type="button"
+            class="chip"
+            [class.elegida]="categoriaElegida() === c.id"
+            [attr.aria-pressed]="categoriaElegida() === c.id"
+            (click)="elegirCategoria(c.id)"
+          >
+            {{ c.nombre }}
+          </button>
+        }
+      </div>
+
+      @if (productosVisibles().length === 0) {
+        <p class="vacio">
+          @if (busqueda()) {
+            No hay productos que coincidan con la búsqueda.
+          } @else {
+            Todavía no hay productos disponibles en la carta.
+          }
+        </p>
+      } @else {
+        <ul class="productos">
+          @for (p of productosVisibles(); track p.id) {
+            <li>
+              <button type="button" class="producto" [disabled]="ocupado()" (click)="agregar(p)">
+                <span class="producto-nombre">{{ p.nombre }}</span>
+                <span class="producto-precio">{{ soles(p.precio) }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="cuenta" aria-label="Cuenta de la mesa">
+      <h2>Cuenta</h2>
+
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+      @if (aviso()) {
+        <p class="aviso-ok" role="status">{{ aviso() }}</p>
+      }
+
+      @if (lineas().length === 0) {
+        <p class="vacio">Toca un producto de la carta para empezar el pedido.</p>
+      } @else {
+        <ul class="lineas">
+          @for (i of lineas(); track i.id) {
+            <li class="linea" [class.anulada]="i.estado === 'ANULADO'">
+              <div class="linea-datos">
+                <span class="linea-nombre">{{ i.nombre }}</span>
+                <span class="linea-subtotal">{{ soles(i.subtotal) }}</span>
+              </div>
+              @if (i.nota) {
+                <small class="linea-nota">{{ i.nota }}</small>
+              }
+
+              <div class="linea-pie">
+                <span
+                  class="etiqueta"
+                  [class.cocina]="i.estado === 'ENVIADO'"
+                  [class.listo]="i.estado === 'LISTO'"
+                  [class.servido]="i.estado === 'SERVIDO'"
+                  [class.anulado]="i.estado === 'ANULADO'"
+                >
+                  {{ etiquetaEstado(i.estado) }}
+                </span>
+
+                @if (i.estado === 'PENDIENTE') {
+                  <div class="cantidad" role="group" [attr.aria-label]="'Cantidad de ' + i.nombre">
+                    <button
+                      type="button"
+                      class="paso"
+                      [disabled]="ocupado()"
+                      [attr.aria-label]="'Quitar una unidad de ' + i.nombre"
+                      (click)="cambiarCantidad(i, -1)"
+                    >
+                      −
+                    </button>
+                    <span class="cantidad-valor">{{ i.cantidad }}</span>
+                    <button
+                      type="button"
+                      class="paso"
+                      [disabled]="ocupado()"
+                      [attr.aria-label]="'Agregar una unidad de ' + i.nombre"
+                      (click)="cambiarCantidad(i, 1)"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button type="button" class="enlace" (click)="abrirNota(i)">
+                    {{ i.nota ? 'Editar nota' : 'Nota' }}<span class="oculto"> de {{ i.nombre }}</span>
+                  </button>
+                  <button type="button" class="enlace peligro" [disabled]="ocupado()" (click)="quitar(i)">
+                    Quitar<span class="oculto"> {{ i.nombre }}</span>
+                  </button>
+                } @else {
+                  <span class="cantidad-fija">× {{ i.cantidad }}</span>
+                  @if (i.estado === 'ENVIADO' || i.estado === 'LISTO') {
+                    <button type="button" class="enlace" [disabled]="ocupado()" (click)="servir(i)">
+                      Servido<span class="oculto"> {{ i.nombre }}</span>
+                    </button>
+                  }
+                  @if ((i.estado === 'ENVIADO' || i.estado === 'LISTO' || i.estado === 'SERVIDO') && esAdmin()) {
+                    <button type="button" class="enlace peligro" (click)="pedirAnularItem(i)">
+                      Anular<span class="oculto"> {{ i.nombre }}</span>
+                    </button>
+                  }
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      }
+
+      <p class="total">
+        <span>Total</span>
+        <strong>{{ soles(total()) }}</strong>
+      </p>
+
+      @if (listos() > 0) {
+        <button type="button" class="servir-todo ancho" [disabled]="ocupado()" (click)="servirListos()">
+          Servir lo que está listo ({{ listos() }})
+        </button>
+      }
+
+      <button type="button" class="primario ancho" [disabled]="pendientes() === 0 || ocupado()" (click)="enviar()">
+        {{ pendientes() === 0 ? 'Nada nuevo por enviar' : 'Enviar a cocina (' + pendientes() + ')' }}
+      </button>
+
+      @if (pedido() && esAdmin()) {
+        <button type="button" class="peligro-ancho" [disabled]="ocupado()" (click)="pedirAnularPedido()">
+          Anular la cuenta
+        </button>
+      }
+
+      @if (pedido()) {
+        @if (puedeCobrar()) {
+          @if (cajaCerrada()) {
+            <p class="mensaje-caja" role="alert">
+              La caja está cerrada. <a routerLink="/caja">Ábrela en Caja</a> para poder cobrar.
+            </p>
+          }
+          <button
+            type="button"
+            class="cobrar ancho"
+            [disabled]="ocupado() || pendientes() > 0 || total() <= 0"
+            (click)="cobrar()"
+          >
+            Cobrar {{ soles(total()) }}
+          </button>
+          @if (pendientes() > 0) {
+            <p class="nota-cobro">Envía a cocina los productos nuevos para poder cobrar.</p>
+          }
+        } @else {
+          <p class="nota-cobro">El cobro lo hace el cajero o el administrador.</p>
+        }
+      }
+    </section>
+  </div>
+}
+
+<dialog #dlgNota aria-labelledby="titulo-nota">
+  <form [formGroup]="formNota" (ngSubmit)="guardarNota()" novalidate>
+    <h2 id="titulo-nota">Nota para cocina</h2>
+    @if (itemConNota(); as i) {
+      <p class="ayuda">{{ i.nombre }}</p>
+    }
+
+    <div class="campo">
+      <label for="n-nota">Nota</label>
+      <input id="n-nota" type="text" formControlName="nota" autocomplete="off" placeholder="Ej.: sin ají, bien cocido" />
+      @if (formNota.controls.nota.invalid) {
+        <small class="aviso">La nota no puede pasar de 150 caracteres</small>
+      } @else {
+        <small class="ayuda">Déjala vacía para quitar la nota.</small>
+      }
+    </div>
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cerrarNota()">Cancelar</button>
+      <button type="submit" class="primario">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog #dlgCobro aria-labelledby="titulo-cobro">
+  <form (submit)="enviarCobro($event)" novalidate>
+    <h2 id="titulo-cobro">Cobrar {{ mesa()?.nombre ?? 'la cuenta' }}</h2>
+
+    <p class="cobro-total">
+      <span>Total a cobrar</span>
+      <strong>{{ soles(total()) }}</strong>
+    </p>
+
+    @if (errorCobro()) {
+      <p class="error" role="alert">{{ errorCobro() }}</p>
+    }
+
+    <div class="pagos">
+      @for (l of lineasPago(); track $index) {
+        <div class="pago">
+          <div>
+            <label [attr.for]="'p-metodo-' + $index">Método</label>
+            <select
+              [id]="'p-metodo-' + $index"
+              [value]="l.metodo"
+              (change)="cambiarMetodo($index, $any($event.target).value)"
+            >
+              @for (m of metodos; track m.valor) {
+                <option [value]="m.valor" [selected]="m.valor === l.metodo">{{ m.etiqueta }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label [attr.for]="'p-monto-' + $index">Monto (S/)</label>
+            <input
+              [id]="'p-monto-' + $index"
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              [value]="l.monto"
+              (input)="cambiarMonto($index, $any($event.target).value)"
+            />
+          </div>
+          @if (lineasPago().length > 1) {
+            <button type="button" class="enlace peligro" (click)="quitarMetodo($index)">
+              Quitar<span class="oculto"> el pago {{ $index + 1 }}</span>
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    @if (lineasPago().length < metodos.length) {
+      <button type="button" class="enlace" (click)="agregarMetodo()">+ Pagar con otro método</button>
+    }
+
+    <p class="balance" [class.cuadra]="pagosValidos()" role="status">
+      @if (faltante() > 0) {
+        Faltan {{ soles(faltante()) }} para completar el total.
+      } @else if (faltante() < 0) {
+        Los pagos pasan del total por {{ soles(-faltante()) }}.
+      } @else if (pagosValidos()) {
+        Los pagos cuadran con el total.
+      } @else {
+        Revisa los montos: cada pago debe ser mayor a 0.
+      }
+    </p>
+
+    @if (hayEfectivo()) {
+      <div class="campo">
+        <label for="p-recibido">Efectivo recibido (opcional)</label>
+        <input
+          id="p-recibido"
+          type="text"
+          inputmode="decimal"
+          autocomplete="off"
+          [value]="efectivoRecibido()"
+          (input)="escribirRecibido($any($event.target).value)"
+        />
+        @if (vuelto() !== null) {
+          <small class="vuelto">Vuelto a entregar: <strong>{{ soles(vuelto() ?? 0) }}</strong></small>
+        } @else if (recibidoInsuficiente()) {
+          <small class="aviso">El efectivo recibido no alcanza para esa parte de la cuenta.</small>
+        } @else {
+          <small class="ayuda">Escribe lo que te entregó el cliente para calcular el vuelto.</small>
+        }
+      </div>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cancelarCobro()">Cancelar</button>
+      <button type="submit" class="primario" [disabled]="!pagosValidos() || cobrando()">
+        {{ cobrando() ? 'Cobrando…' : 'Confirmar cobro' }}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<dialog #dlgTicket aria-labelledby="titulo-ticket" (close)="terminarTicket()">
+  @if (ticket(); as t) {
+    <h2 id="titulo-ticket">Cuenta cobrada</h2>
+    <p class="ticket-numero">Ticket N.° {{ ticketNumero(t.ticket) }}</p>
+    <p class="cobro-total">
+      <span>{{ t.mesa }}</span>
+      <strong>{{ soles(t.total) }}</strong>
+    </p>
+    @if (t.vuelto !== null && t.vuelto > 0) {
+      <p class="vuelto-grande">Entrega de vuelto: <strong>{{ soles(t.vuelto ?? 0) }}</strong></p>
+    }
+    <p class="ayuda">La mesa ya quedó libre.</p>
+    <div class="botones">
+      <button type="button" class="primario" (click)="cerrarTicket()">Listo</button>
+    </div>
+  }
+</dialog>
+
+<dialog #dlgConfirmar aria-labelledby="titulo-confirmar">
+  @if (confirmacion(); as c) {
+    <h2 id="titulo-confirmar">{{ c.titulo }}</h2>
+    <p class="mensaje-confirmar">{{ c.mensaje }}</p>
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="cancelarConfirmacion()">No, volver</button>
+      <button type="button" class="peligro-boton" [disabled]="ocupado()" (click)="aceptarConfirmacion()">
+        {{ c.boton }}
+      </button>
+    </div>
+  }
+</dialog>

@@ -1,0 +1,534 @@
+:host {
+  display: block;
+  container: informes / inline-size;
+}
+
+.cabecera {
+  margin-bottom: 24px;
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+
+.descripcion {
+  max-width: 640px;
+  margin: 0;
+  color: var(--texto-suave);
+}
+
+a {
+  color: var(--hoja);
+  font-weight: 600;
+}
+
+a:focus-visible,
+.desplazable:focus-visible {
+  outline: 3px solid var(--yuzu);
+  outline-offset: 2px;
+}
+
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.suave {
+  color: var(--texto-suave);
+}
+
+/* ---------- Botones ---------- */
+
+.primario,
+.secundario {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primario {
+  border: 0;
+  background: var(--hoja);
+  color: var(--yuzu);
+}
+
+.primario:hover:not(:disabled) {
+  background: #0e3322;
+}
+
+.primario:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secundario {
+  border: 1.5px solid var(--borde);
+  background: #fff;
+  color: var(--hoja);
+}
+
+.secundario:hover {
+  background: var(--hoja-suave);
+}
+
+.enlace {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--hoja);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.primario:focus-visible,
+.secundario:focus-visible,
+.enlace:focus-visible,
+.chip:focus-visible {
+  outline: 3px solid var(--yuzu);
+  outline-offset: 2px;
+}
+
+/* ---------- Periodo (un solo filtro, arriba, para todo el informe) ---------- */
+
+.filtros {
+  margin-bottom: 20px;
+}
+
+.presets,
+.filtros-bloque {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid var(--borde);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--texto);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip:hover {
+  background: #f1f5ee;
+}
+
+.chip.seleccionado {
+  border-color: var(--hoja);
+  background: var(--hoja-suave);
+  color: var(--hoja);
+  font-weight: 700;
+}
+
+.chip.chico {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.personalizado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin-top: 16px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.campo label {
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+input[type='date'] {
+  height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid var(--borde);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--texto);
+  font-size: 1rem;
+}
+
+input[type='date']:focus-visible {
+  outline: none;
+  border-color: var(--hoja);
+  box-shadow: 0 0 0 4px rgba(245, 196, 0, 0.45);
+}
+
+.ayuda {
+  margin: 8px 0 0;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+}
+
+.error {
+  max-width: 520px;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fdecea;
+  color: var(--error);
+  font-size: 0.95rem;
+}
+
+.rango {
+  min-height: 1.5em;
+  margin: 16px 0 0;
+  color: var(--texto-suave);
+}
+
+.rango strong {
+  color: var(--texto);
+}
+
+.actualizando {
+  margin-left: 10px;
+  font-size: 0.9rem;
+}
+
+/* ---------- Mientras se actualiza, lo anterior queda a la vista, atenuado ---------- */
+
+.informe {
+  margin-bottom: 8px;
+}
+
+.informe.atenuado {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .informe {
+    transition: opacity 0.15s ease;
+  }
+}
+
+/* ---------- Avisos ---------- */
+
+.aviso-estado {
+  max-width: 560px;
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border-left: 4px solid var(--yuzu);
+  border-radius: 0 10px 10px 0;
+  background: #fff;
+}
+
+.aviso-estado.con-error {
+  border-left-color: var(--error);
+}
+
+.aviso-estado p {
+  margin: 0 0 12px;
+}
+
+/* ---------- Cifras del resumen ---------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.tiles.dos {
+  grid-template-columns: repeat(2, minmax(0, 260px));
+  margin: 16px 0;
+}
+
+.tile {
+  /* El tamaño de la cifra se ajusta al ancho de su tarjeta, para que nunca se parta en dos líneas. */
+  container-type: inline-size;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+/* Dentro de un bloque blanco, las cifras llevan fondo suave para que se vean como tarjetas. */
+.bloque .tile {
+  background: #f5f7f3;
+}
+
+.tile .etiqueta {
+  margin: 0 0 4px;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+}
+
+.tile .valor {
+  margin: 0;
+  font-size: clamp(1.3rem, 12cqw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.tile.principal {
+  border-left: 4px solid var(--yuzu);
+}
+
+.tile.principal .valor {
+  font-size: clamp(1.5rem, 14cqw, 2.25rem);
+}
+
+/* ---------- Bloques ---------- */
+
+.bloque {
+  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.titulo-bloque {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.nota {
+  max-width: 720px;
+  margin: 12px 0 0;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+}
+
+/* ---------- Barras: un solo color, del más largo al más corto, con el valor escrito al lado ---------- */
+
+.pista {
+  height: 12px;
+  border-radius: 4px;
+  background: #f1f4ef;
+}
+
+.barra {
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--hoja);
+}
+
+.lista-barras {
+  display: grid;
+  grid-template-columns: 110px minmax(80px, 1fr) auto;
+  gap: 14px 16px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada fila usa las columnas de la lista: así todas las barras empiezan y terminan en el mismo lugar. */
+.lista-barras li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+.nombre-barra {
+  font-weight: 600;
+}
+
+.valor-barra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+/* ---------- Tablas ---------- */
+
+.tabla-contenedor {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.desplazable {
+  max-height: 460px;
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+}
+
+table.ancha {
+  min-width: 760px;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e3e8e2;
+  background: #fff;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+tbody th,
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf0ec;
+  vertical-align: middle;
+}
+
+tbody th {
+  font-weight: 600;
+  text-align: left;
+}
+
+tr:last-child th,
+tr:last-child td {
+  border-bottom: 0;
+}
+
+tr:hover td,
+tr:hover th {
+  background: #f7f9f6;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+thead .num {
+  text-align: right;
+}
+
+.col-barra {
+  width: 30%;
+  min-width: 140px;
+}
+
+.puesto {
+  width: 48px;
+  color: var(--texto-suave);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+thead .puesto {
+  text-align: right;
+}
+
+.nombre {
+  display: block;
+}
+
+.categoria {
+  display: block;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+/* Un día sin ventas se ve apagado, no como un hueco. */
+.sin-ventas th,
+.sin-ventas td {
+  color: var(--texto-suave);
+  font-weight: 400;
+}
+
+.alerta {
+  color: var(--error);
+  font-weight: 700;
+}
+
+/* La barra de abajo del nombre solo se usa en pantallas angostas, donde la columna de barras no cabe. */
+.solo-movil {
+  display: none;
+}
+
+.pista.solo-movil {
+  margin-top: 6px;
+  height: 8px;
+}
+
+@container informes (max-width: 720px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tile.principal {
+    grid-column: 1 / -1;
+  }
+}
+
+@container informes (max-width: 560px) {
+  .bloque {
+    padding: 16px;
+  }
+
+  .lista-barras,
+  .lista-barras li {
+    grid-template-columns: 1fr;
+  }
+
+  .lista-barras li {
+    gap: 4px;
+  }
+
+  .valor-barra {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  /* Las tablas con barras caben sin deslizar: la barra pasa debajo del nombre. */
+  table:not(.ancha) {
+    min-width: 0;
+  }
+
+  .col-barra,
+  .puesto {
+    display: none;
+  }
+
+  .solo-movil {
+    display: block;
+  }
+
+  thead th,
+  tbody th,
+  td {
+    padding: 10px 6px;
+  }
+}

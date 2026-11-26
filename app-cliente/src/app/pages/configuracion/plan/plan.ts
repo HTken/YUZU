@@ -7,7 +7,6 @@ import { AuthService } from '../../../core/auth.service';
 import { CulqiService, TokenCulqi } from '../../../core/culqi.service';
 import { PagosApi } from '../../../core/pagos.api';
 import {
-  MiPlan,
   PlanService,
   etiquetaEstado,
   formatearFecha,
@@ -48,7 +47,55 @@ import {
               [attr.aria-valuemax]="p.maxUsuarios"
               [attr.aria-valuenow]="p.usuariosActivos"
             >
-              <div class="relleno" [style.width.%]="porcentaje(p)"></div>
+              <div class="relleno" [style.width.%]="porcentaje(p.usuariosActivos, p.maxUsuarios)"></div>
+            </div>
+          </dd>
+        </div>
+        <div class="fila">
+          <dt>Productos activos</dt>
+          <dd>
+            {{ p.productosActivos }} de {{ p.maxProductos }}
+            <div
+              class="barra"
+              role="progressbar"
+              aria-label="Productos activos del plan"
+              aria-valuemin="0"
+              [attr.aria-valuemax]="p.maxProductos"
+              [attr.aria-valuenow]="p.productosActivos"
+            >
+              <div class="relleno" [style.width.%]="porcentaje(p.productosActivos, p.maxProductos)"></div>
+            </div>
+          </dd>
+        </div>
+        <div class="fila">
+          <dt>Mesas activas</dt>
+          <dd>
+            {{ p.mesasActivas }} de {{ p.maxMesas }}
+            <div
+              class="barra"
+              role="progressbar"
+              aria-label="Mesas activas del plan"
+              aria-valuemin="0"
+              [attr.aria-valuemax]="p.maxMesas"
+              [attr.aria-valuenow]="p.mesasActivas"
+            >
+              <div class="relleno" [style.width.%]="porcentaje(p.mesasActivas, p.maxMesas)"></div>
+            </div>
+          </dd>
+        </div>
+        <div class="fila">
+          <dt>Insumos activos</dt>
+          <dd>
+            {{ p.insumosActivos }} de {{ p.maxInsumos }}
+            <div
+              class="barra"
+              role="progressbar"
+              aria-label="Insumos activos del plan"
+              aria-valuemin="0"
+              [attr.aria-valuemax]="p.maxInsumos"
+              [attr.aria-valuenow]="p.insumosActivos"
+            >
+              <div class="relleno" [style.width.%]="porcentaje(p.insumosActivos, p.maxInsumos)"></div>
             </div>
           </dd>
         </div>
@@ -305,8 +352,8 @@ export class Plan implements OnInit {
     this.planes.cargar();
   }
 
-  protected porcentaje(p: MiPlan): number {
-    return p.maxUsuarios > 0 ? Math.min(100, Math.round((p.usuariosActivos / p.maxUsuarios) * 100)) : 0;
+  protected porcentaje(usados: number, maximo: number): number {
+    return maximo > 0 ? Math.min(100, Math.round((usados / maximo) * 100)) : 0;
   }
 
   protected cambiarMeses(valor: string): void {

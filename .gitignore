@@ -1,1 +1,28 @@
+# ---------------------------------------------------------------
+# Secretos: NUNCA se suben a GitHub (claves de Culqi, contraseña de
+# la base de datos, secreto del JWT).
+# ---------------------------------------------------------------
 application-local.properties
+**/application-local.properties
+.env
+.env.*
+*.pem
+*.key
+# Puede traer claves en "env". Si la tuya no las trae y quieres subirla, quita esta línea.
+.vscode/launch.json
+
+# Dependencias y archivos compilados
+node_modules/
+target/
+dist/
+.angular/
+out-tsc/
+.gradle/
+build/
+
+# Editor y sistema
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+*.log

@@ -22,6 +22,12 @@ export class Shell implements OnInit {
     this.planes.cargar();
   }
 
+  /** Si el rol de quien inició sesión es uno de los indicados. Sirve para mostrar solo lo que le corresponde. */
+  protected puede(...roles: string[]): boolean {
+    const rol = this.auth.sesion()?.rol;
+    return rol !== undefined && roles.includes(rol);
+  }
+
   protected cerrarMenu(): void {
     this.menuAbierto.set(false);
   }

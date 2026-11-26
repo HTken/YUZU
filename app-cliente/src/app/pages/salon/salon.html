@@ -1,0 +1,61 @@
+<header class="cabecera">
+  <div>
+    <h1>Mesas</h1>
+    <p class="descripcion">Toca una mesa para tomar o revisar su pedido.</p>
+  </div>
+  <button type="button" class="secundario" (click)="cargar(true)">Actualizar</button>
+</header>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando las mesas…</p>
+} @else if (errorLista()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorLista() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (grupos().length === 0) {
+  <div class="aviso-estado">
+    <p>Todavía no hay mesas activas.</p>
+    <a routerLink="/configuracion/mesas" class="enlace-simple">Crear salones y mesas en Configuración</a>
+  </div>
+} @else {
+  <p class="resumen" role="status">
+    <span class="punto libre"></span> {{ libres() }} {{ libres() === 1 ? 'libre' : 'libres' }}
+    <span class="punto ocupada"></span> {{ ocupadas() }} {{ ocupadas() === 1 ? 'ocupada' : 'ocupadas' }}
+  </p>
+
+  @for (g of grupos(); track g.salon.id) {
+    <section class="salon" [attr.aria-label]="g.salon.nombre">
+      <h2>{{ g.salon.nombre }}</h2>
+
+      <ul class="mesas">
+        @for (m of g.mesas; track m.mesa.id) {
+          <li>
+            <a
+              class="mesa"
+              [class.ocupada]="m.pedido !== null"
+              [routerLink]="['/mesas', m.mesa.id]"
+              [attr.aria-label]="etiquetaMesa(m)"
+            >
+              <span class="mesa-nombre">{{ m.mesa.nombre }}</span>
+              @if (m.pedido; as p) {
+                <span class="mesa-estado">Ocupada</span>
+                <span class="mesa-total">{{ soles(p.total) }}</span>
+                <span class="mesa-detalle">{{ p.mozo }} · {{ tiempo(p) }}</span>
+                @if (p.listos > 0) {
+                  <span class="mesa-aviso listo">{{ p.listos }} {{ p.listos === 1 ? 'listo' : 'listos' }} para servir</span>
+                }
+                @if (p.pendientes > 0) {
+                  <span class="mesa-aviso">{{ p.pendientes }} sin enviar</span>
+                }
+              } @else {
+                <span class="mesa-estado">Libre</span>
+                <span class="mesa-detalle">{{ m.mesa.capacidad }} {{ m.mesa.capacidad === 1 ? 'persona' : 'personas' }}</span>
+              }
+            </a>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+}

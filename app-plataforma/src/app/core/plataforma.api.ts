@@ -24,6 +24,9 @@ export interface PlanInfo {
   nombre: string;
   precioMensual: number;
   maxUsuarios: number;
+  maxProductos: number;
+  maxMesas: number;
+  maxInsumos: number;
   activo: boolean;
 }
 

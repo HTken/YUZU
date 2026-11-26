@@ -36,6 +36,13 @@ public final class SesionActual {
         return Long.valueOf(jwt().getSubject());
     }
 
+    /** Si quien hace la petición tiene ese rol (por ejemplo "ADMIN"), según las autoridades del token verificado. */
+    public static boolean tieneRol(String rol) {
+        Authentication autenticacion = SecurityContextHolder.getContext().getAuthentication();
+        return autenticacion != null && autenticacion.getAuthorities().stream()
+                .anyMatch(autoridad -> ("ROLE_" + rol).equals(autoridad.getAuthority()));
+    }
+
     /** Nombre de usuario de quien hace la petición, para dejar constancia de quién registró algo. */
     public static String usuario() {
         String usuario = jwt().getClaimAsString("usuario");
