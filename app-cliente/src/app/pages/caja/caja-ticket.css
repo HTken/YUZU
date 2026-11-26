@@ -1,0 +1,38 @@
+/*
+ * Estilos de lo que agrega el ticket a la pantalla de Caja (botón "Reimprimir"). Van aparte de caja.css
+ * y de caja-anulaciones.css para no tocar los colores y ajustes que ya hiciste.
+ */
+
+/* "Reimprimir" y "Anular" lado a lado en la última columna de la tabla. */
+.acciones-fila {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+td.accion {
+  white-space: nowrap;
+}
+
+/* Que "S/ 92.50" no se parta en dos líneas ahora que la última columna es más ancha. */
+td.numero {
+  white-space: nowrap;
+}
+
+/*
+ * En pantallas angostas la columna de botones queda fija a la derecha: con los dos botones lado a lado taparía
+ * casi toda la tabla, así que se apilan para que ocupe lo mínimo.
+ */
+@media (max-width: 880px) {
+  .acciones-fila {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  td.accion {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}

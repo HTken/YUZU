@@ -342,7 +342,13 @@
       <p class="vuelto-grande">Entrega de vuelto: <strong>{{ soles(t.vuelto ?? 0) }}</strong></p>
     }
     <p class="ayuda">La mesa ya quedó libre.</p>
+    @if (errorImpresion()) {
+      <p class="error" role="alert">{{ errorImpresion() }}</p>
+    }
     <div class="botones">
+      <button type="button" class="secundario" [disabled]="imprimiendo()" (click)="imprimir()">
+        {{ imprimiendo() ? 'Preparando…' : 'Imprimir ticket' }}
+      </button>
       <button type="button" class="primario" (click)="cerrarTicket()">Listo</button>
     </div>
   }

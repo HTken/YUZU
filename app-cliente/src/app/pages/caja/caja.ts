@@ -5,6 +5,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { AuthService } from '../../core/auth.service';
 import { CajaApi, ResumenTurno, Turno, Venta, etiquetaMetodo } from '../../core/caja.api';
 import { PATRON_MONTO, aNumero, centavos, fechaHora, hora, soles, ticketNumero } from '../../core/formato';
+import { imprimirTicket } from '../../core/ticket';
 import { AnularVenta, ResultadoAnulacion } from './anular-venta';
 
 type TipoMovimiento = 'INGRESO' | 'EGRESO';
@@ -17,8 +18,8 @@ type TipoMovimiento = 'INGRESO' | 'EGRESO';
   selector: 'app-caja',
   imports: [ReactiveFormsModule, AnularVenta],
   templateUrl: './caja.html',
-  // Lo de las anulaciones va en su propio archivo para no tocar los ajustes que ya hiciste en caja.css.
-  styleUrls: ['./caja.css', './caja-anulaciones.css'],
+  // Lo de las anulaciones y el ticket va en archivos aparte para no tocar los ajustes que ya hiciste en caja.css.
+  styleUrls: ['./caja.css', './caja-anulaciones.css', './caja-ticket.css'],
 })
 export class Caja implements OnInit {
   private readonly api = inject(CajaApi);
@@ -49,6 +50,8 @@ export class Caja implements OnInit {
   protected readonly ocupado = signal(false);
   protected readonly error = signal('');
   protected readonly aviso = signal('');
+  /** La venta cuyo ticket se está preparando para reimprimir. */
+  protected readonly reimprimiendo = signal<number | null>(null);
 
   // Abrir caja
   protected readonly formApertura = this.fb.group({
@@ -243,6 +246,32 @@ export class Caja implements OnInit {
       error: (e: HttpErrorResponse) => {
         this.ocupado.set(false);
         this.errorCierre.set(this.textoError(e, 'No se pudo cerrar la caja. Inténtalo de nuevo.'));
+      },
+    });
+  }
+
+  // ------------------------------------------------------------ reimprimir el ticket
+
+  /** Vuelve a imprimir el ticket de una venta cobrada. Lo pueden hacer el administrador y el cajero. */
+  protected reimprimir(venta: Venta): void {
+    if (this.reimprimiendo() !== null) {
+      return;
+    }
+    this.limpiarMensajes();
+    this.reimprimiendo.set(venta.pedidoId);
+
+    this.api.ticket(venta.pedidoId).subscribe({
+      next: (datos) => {
+        this.reimprimiendo.set(null);
+        imprimirTicket(datos, { copia: true });
+      },
+      error: (e: HttpErrorResponse) => {
+        this.reimprimiendo.set(null);
+        this.error.set(this.textoError(e, 'No se pudo preparar el ticket. Revisa tu conexión e inténtalo de nuevo.'));
+        // Si otra persona anuló la venta mientras tanto, la tabla se actualiza.
+        if (e.status === 404 || e.status === 409) {
+          this.cargar(true);
+        }
       },
     });
   }

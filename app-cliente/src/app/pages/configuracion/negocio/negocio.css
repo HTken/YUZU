@@ -1,0 +1,241 @@
+.cabecera {
+  margin-bottom: 24px;
+}
+
+.volver {
+  color: var(--hoja);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+h1 {
+  margin: 4px 0 6px;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+.descripcion {
+  margin: 0;
+  color: var(--texto-suave);
+}
+
+/* ---------- Botones ---------- */
+
+.primario,
+.secundario {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primario {
+  border: 0;
+  background: var(--hoja);
+  color: var(--yuzu);
+}
+
+.primario:hover:not(:disabled) {
+  background: #0e3322;
+}
+
+.primario:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.secundario {
+  border: 1.5px solid var(--borde);
+  background: #fff;
+  color: var(--hoja);
+}
+
+.secundario:hover {
+  background: var(--hoja-suave);
+}
+
+.primario:focus-visible,
+.secundario:focus-visible,
+.volver:focus-visible {
+  outline: 3px solid var(--yuzu);
+  outline-offset: 2px;
+}
+
+/* ---------- Estados ---------- */
+
+.aviso-estado {
+  max-width: 640px;
+  margin: 0;
+  padding: 24px;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--texto-suave);
+}
+
+.aviso-estado.con-error {
+  color: var(--error);
+}
+
+.aviso-estado p {
+  margin: 0 0 12px;
+}
+
+/* ---------- Formulario ---------- */
+
+.tarjeta {
+  max-width: 640px;
+  padding: 24px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.nombre-fijo {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--hoja-suave);
+}
+
+.nombre-fijo .ayuda {
+  margin-top: 2px;
+}
+
+.campo {
+  margin-bottom: 16px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+input[type='text'] {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid var(--borde);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--texto);
+  font-size: 1rem;
+}
+
+input[type='text']:focus-visible {
+  outline: none;
+  border-color: var(--hoja);
+  box-shadow: 0 0 0 4px rgba(245, 196, 0, 0.45);
+}
+
+.ayuda,
+.aviso {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.875rem;
+}
+
+.ayuda {
+  color: var(--texto-suave);
+}
+
+.aviso {
+  color: var(--error);
+}
+
+/* Ancho del papel */
+
+.papel {
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+}
+
+.papel legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--borde);
+  border-radius: 10px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.opcion:has(input:checked) {
+  border-color: var(--hoja);
+  background: var(--hoja-suave);
+}
+
+.opcion:has(input:focus-visible) {
+  box-shadow: 0 0 0 4px rgba(245, 196, 0, 0.45);
+}
+
+.opcion input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--hoja);
+}
+
+.opcion strong {
+  margin-right: 6px;
+}
+
+.error,
+.exito {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+
+.error {
+  background: #fdecea;
+  color: var(--error);
+}
+
+.exito {
+  background: var(--hoja-suave);
+  color: var(--hoja);
+  font-weight: 600;
+}
+
+.botones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.nota-final {
+  margin: 12px 0 0;
+}
+
+.legal {
+  max-width: 640px;
+  margin: 16px 4px 0;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 520px) {
+  .tarjeta {
+    padding: 18px;
+  }
+
+  .botones > button {
+    flex: 1 1 100%;
+  }
+}

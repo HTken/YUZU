@@ -86,6 +86,12 @@ export const routes: Routes = [
             path: 'mesas',
             loadComponent: () => import('./pages/configuracion/mesas/mesas').then((m) => m.Mesas),
           },
+          {
+            path: 'negocio',
+            canActivate: [soloRoles('ADMIN')],
+            loadComponent: () =>
+              import('./pages/configuracion/negocio/negocio').then((m) => m.DatosNegocio),
+          },
         ],
       },
     ],

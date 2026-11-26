@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+
+import { AuthService } from '../../core/auth.service';
 
 @Component({
   selector: 'app-configuracion',
@@ -33,11 +35,14 @@ import { RouterLink } from '@angular/router';
           <span class="detalle">Carta, categorías y precios.</span>
         </a>
       </li>
-      <li class="pronto">
-        <span class="titulo">Datos del restaurante</span>
-        <span class="detalle">Nombre, RUC, dirección y logo.</span>
-        <span class="etiqueta">Pronto</span>
-      </li>
+      @if (esAdmin()) {
+        <li>
+          <a routerLink="/configuracion/negocio">
+            <span class="titulo">Datos del negocio</span>
+            <span class="detalle">RUC, dirección y mensaje que salen en el ticket, y el ancho del papel.</span>
+          </a>
+        </li>
+      }
     </ul>
   `,
   styles: [
@@ -70,8 +75,7 @@ import { RouterLink } from '@angular/router';
         border-bottom: 0;
       }
 
-      a,
-      .pronto {
+      a {
         display: grid;
         grid-template-columns: 1fr auto;
         gap: 2px 16px;
@@ -99,24 +103,12 @@ import { RouterLink } from '@angular/router';
         color: var(--texto-suave);
         font-size: 0.95rem;
       }
-
-      .pronto .titulo,
-      .pronto .detalle {
-        opacity: 0.6;
-      }
-
-      .etiqueta {
-        grid-column: 2;
-        grid-row: 1 / span 2;
-        align-self: center;
-        padding: 2px 10px;
-        border-radius: 999px;
-        background: var(--hoja-suave);
-        color: var(--hoja);
-        font-size: 0.85rem;
-        font-weight: 600;
-      }
     `,
   ],
 })
-export class Configuracion {}
+export class Configuracion {
+  private readonly auth = inject(AuthService);
+
+  /** Los datos del negocio los cambia solo el administrador (el servidor también lo exige). */
+  protected readonly esAdmin = computed(() => this.auth.sesion()?.rol === 'ADMIN');
+}

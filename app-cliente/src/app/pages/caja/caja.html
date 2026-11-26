@@ -100,9 +100,7 @@
                 <th scope="col">Cobró</th>
                 <th scope="col">Forma de pago</th>
                 <th scope="col" class="derecha">Total</th>
-                @if (esAdmin()) {
-                  <th scope="col" class="derecha accion">Acción</th>
-                }
+                <th scope="col" class="derecha accion">Acción</th>
               </tr>
             </thead>
             <tbody>
@@ -115,19 +113,30 @@
                   <td>{{ v.cobradoPor }}</td>
                   <td>{{ pagosTexto(v) }}</td>
                   <td class="derecha numero">{{ soles(v.total) }}</td>
-                  @if (esAdmin()) {
-                    <td class="derecha accion">
+                  <td class="derecha accion">
+                    <div class="acciones-fila">
                       <button
                         type="button"
-                        class="secundario chico peligro"
-                        [disabled]="ocupado()"
-                        [attr.aria-label]="'Anular la venta ' + ticketNumero(v.ticket)"
-                        (click)="pedirAnulacion(v)"
+                        class="secundario chico"
+                        [disabled]="reimprimiendo() !== null"
+                        [attr.aria-label]="'Reimprimir el ticket de la venta ' + ticketNumero(v.ticket)"
+                        (click)="reimprimir(v)"
                       >
-                        Anular
+                        {{ reimprimiendo() === v.pedidoId ? 'Preparando…' : 'Reimprimir' }}
                       </button>
-                    </td>
-                  }
+                      @if (esAdmin()) {
+                        <button
+                          type="button"
+                          class="secundario chico peligro"
+                          [disabled]="ocupado()"
+                          [attr.aria-label]="'Anular la venta ' + ticketNumero(v.ticket)"
+                          (click)="pedirAnulacion(v)"
+                        >
+                          Anular
+                        </button>
+                      }
+                    </div>
+                  </td>
                 </tr>
               }
             </tbody>

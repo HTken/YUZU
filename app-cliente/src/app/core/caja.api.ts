@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_URL } from './config';
+import { Negocio } from './negocio.api';
 
 export type MetodoPago = 'EFECTIVO' | 'YAPE' | 'PLIN' | 'TARJETA';
 
@@ -60,6 +61,31 @@ export interface VentaAnulada {
   anuladoPor: string;
   anuladoEn: string;
   motivo: string;
+}
+
+/** Una línea del ticket. El importe es cantidad por precio unitario. */
+export interface LineaTicket {
+  nombre: string;
+  cantidad: number;
+  precioUnitario: number;
+  importe: number;
+  nota: string | null;
+}
+
+/**
+ * Todo lo que lleva el ticket de una venta cobrada, para imprimirlo o volver a imprimirlo.
+ * No es un comprobante de pago electrónico: es el ticket interno del local.
+ */
+export interface TicketVenta {
+  negocio: Negocio;
+  ticket: number;
+  mesa: string;
+  mozo: string;
+  cobradoPor: string;
+  cobradoEn: string;
+  lineas: LineaTicket[];
+  total: number;
+  pagos: Pago[];
 }
 
 export interface Movimiento {
@@ -141,6 +167,11 @@ export class CajaApi {
 
   cobrar(pedidoId: number, pagos: PagoRequest[]): Observable<Cobro> {
     return this.http.post<Cobro>(`${this.url}/pedidos/${pedidoId}/cobrar`, { pagos });
+  }
+
+  /** Los datos del ticket de una venta cobrada (para imprimirlo de nuevo). Falla si la venta se anuló. */
+  ticket(pedidoId: number): Observable<TicketVenta> {
+    return this.http.get<TicketVenta>(`${this.url}/ventas/${pedidoId}/ticket`);
   }
 
   /** Anula una venta ya cobrada de la caja abierta (solo el administrador). Devuelve el resumen ya actualizado. */

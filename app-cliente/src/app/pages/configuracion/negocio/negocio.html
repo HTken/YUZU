@@ -1,0 +1,102 @@
+<header class="cabecera">
+  <a routerLink="/configuracion" class="volver">Configuración</a>
+  <h1>Datos del negocio</h1>
+  <p class="descripcion">Lo que sale impreso en el encabezado y al pie de cada ticket.</p>
+</header>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando los datos…</p>
+} @else if (errorCarga()) {
+  <div class="aviso-estado con-error" role="alert">
+    <p>{{ errorCarga() }}</p>
+    <button type="button" class="secundario" (click)="cargar()">Reintentar</button>
+  </div>
+} @else {
+  <form class="tarjeta" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+    <p class="nombre-fijo">
+      Nombre en el ticket: <strong>{{ nombre() }}</strong>
+      <span class="ayuda">Es el nombre de tu restaurante en el sistema.</span>
+    </p>
+
+    <div class="campo">
+      <label for="n-razon">Razón social</label>
+      <input id="n-razon" type="text" formControlName="razonSocial" autocomplete="off" />
+      @if (form.controls.razonSocial.touched && form.controls.razonSocial.invalid) {
+        <small class="aviso">Máximo 150 caracteres</small>
+      } @else {
+        <small class="ayuda">Opcional. Sale debajo del nombre si es distinta.</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="n-ruc">RUC</label>
+      <input id="n-ruc" type="text" inputmode="numeric" formControlName="ruc" autocomplete="off" />
+      @if (form.controls.ruc.touched && form.controls.ruc.invalid) {
+        <small class="aviso">El RUC tiene 11 números</small>
+      } @else {
+        <small class="ayuda">Opcional. Se revisa que sea un RUC válido al guardar.</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="n-direccion">Dirección</label>
+      <input id="n-direccion" type="text" formControlName="direccion" autocomplete="off" />
+      @if (form.controls.direccion.touched && form.controls.direccion.invalid) {
+        <small class="aviso">Máximo 200 caracteres</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="n-telefono">Teléfono</label>
+      <input id="n-telefono" type="text" inputmode="tel" formControlName="telefono" autocomplete="off" />
+      @if (form.controls.telefono.touched && form.controls.telefono.invalid) {
+        <small class="aviso">Solo números, espacios y los signos + - ( ) . /</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="n-mensaje">Mensaje al pie del ticket</label>
+      <input id="n-mensaje" type="text" formControlName="mensajeTicket" autocomplete="off" />
+      @if (form.controls.mensajeTicket.touched && form.controls.mensajeTicket.invalid) {
+        <small class="aviso">Máximo 120 caracteres</small>
+      } @else {
+        <small class="ayuda">Si lo dejas vacío, no se imprime ningún mensaje.</small>
+      }
+    </div>
+
+    <fieldset class="papel">
+      <legend>Ancho del papel de la impresora</legend>
+      <label class="opcion">
+        <input type="radio" formControlName="ancho" [value]="80" />
+        <span><strong>80 mm</strong> La más común en restaurantes.</span>
+      </label>
+      <label class="opcion">
+        <input type="radio" formControlName="ancho" [value]="58" />
+        <span><strong>58 mm</strong> Impresoras pequeñas o portátiles.</span>
+      </label>
+    </fieldset>
+
+    @if (errorForm()) {
+      <p class="error" role="alert">{{ errorForm() }}</p>
+    }
+    @if (aviso()) {
+      <p class="exito" role="status">{{ aviso() }}</p>
+    }
+
+    <div class="botones">
+      <button type="button" class="secundario" (click)="imprimirPrueba()">Imprimir ticket de prueba</button>
+      <button type="submit" class="primario" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar cambios' }}
+      </button>
+    </div>
+    <p class="ayuda nota-final">
+      El ticket de prueba usa lo que escribiste, aunque no lo hayas guardado. En la ventana de impresión también
+      puedes elegir "Guardar como PDF".
+    </p>
+  </form>
+
+  <p class="legal">
+    El ticket es interno del local: dice "no es comprobante de pago". Las boletas y facturas electrónicas de SUNAT
+    son otro trámite y por ahora no se emiten desde aquí.
+  </p>
+}

@@ -10,6 +10,7 @@ import { CatalogoApi, Categoria, Producto } from '../../core/catalogo.api';
 import { PATRON_MONTO, aNumero, centavos, normalizar, soles, textoTiempo, ticketNumero } from '../../core/formato';
 import { Mesa, MesasApi } from '../../core/mesas.api';
 import { EstadoItem, ItemPedido, Pedido, PedidosApi } from '../../core/pedidos.api';
+import { imprimirTicket } from '../../core/ticket';
 
 /** Una parte del pago: cuánto y con qué método. El monto se guarda como texto porque es lo que se escribe. */
 interface LineaPago {
@@ -19,6 +20,7 @@ interface LineaPago {
 
 /** Lo que se muestra al terminar de cobrar. */
 interface TicketCobrado {
+  pedidoId: number;
   ticket: number;
   total: number;
   mesa: string;
@@ -124,6 +126,8 @@ export class PedidoMesa implements OnInit {
   protected readonly errorCobro = signal('');
   protected readonly cobrando = signal(false);
   protected readonly ticket = signal<TicketCobrado | null>(null);
+  protected readonly imprimiendo = signal(false);
+  protected readonly errorImpresion = signal('');
 
   private readonly centavosPagados = computed(() =>
     this.lineasPago().reduce((suma, l) => {
@@ -456,7 +460,9 @@ export class PedidoMesa implements OnInit {
       next: (cobro) => {
         this.cobrando.set(false);
         this.dialogoCobro().nativeElement.close();
+        this.errorImpresion.set('');
         this.ticket.set({
+          pedidoId: cobro.pedidoId,
           ticket: cobro.ticket,
           total: cobro.total,
           mesa: this.mesa()?.nombre ?? '',
@@ -468,6 +474,32 @@ export class PedidoMesa implements OnInit {
         this.cobrando.set(false);
         this.errorCobro.set(
           this.textoError(e, 'No se pudo cobrar la cuenta. Revisa tu conexión e inténtalo de nuevo.'),
+        );
+      },
+    });
+  }
+
+  /**
+   * Botón "Imprimir ticket". Trae del servidor el ticket de la venta (con los datos del negocio) y abre la
+   * impresión. El vuelto solo se conoce ahora, al cobrar, por eso se agrega aquí.
+   */
+  protected imprimir(): void {
+    const t = this.ticket();
+    if (!t || this.imprimiendo()) {
+      return;
+    }
+    this.errorImpresion.set('');
+    this.imprimiendo.set(true);
+
+    this.cajaApi.ticket(t.pedidoId).subscribe({
+      next: (datos) => {
+        this.imprimiendo.set(false);
+        imprimirTicket(datos, { vuelto: t.vuelto });
+      },
+      error: (e: HttpErrorResponse) => {
+        this.imprimiendo.set(false);
+        this.errorImpresion.set(
+          this.textoError(e, 'No se pudo preparar el ticket. Revisa tu conexión e inténtalo de nuevo.'),
         );
       },
     });

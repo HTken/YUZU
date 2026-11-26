@@ -21,11 +21,14 @@ public class CajaController {
     private final CajaService caja;
     private final CobroService cobros;
     private final AnulacionVentaService anulaciones;
+    private final TicketService tickets;
 
-    public CajaController(CajaService caja, CobroService cobros, AnulacionVentaService anulaciones) {
+    public CajaController(CajaService caja, CobroService cobros, AnulacionVentaService anulaciones,
+                          TicketService tickets) {
         this.caja = caja;
         this.cobros = cobros;
         this.anulaciones = anulaciones;
+        this.tickets = tickets;
     }
 
     @GetMapping("/actual")
@@ -58,6 +61,12 @@ public class CajaController {
     @PostMapping("/pedidos/{pedidoId}/cobrar")
     public CobroDto cobrar(@PathVariable Long pedidoId, @Valid @RequestBody CobrarRequest request) {
         return cobros.cobrar(pedidoId, request);
+    }
+
+    /** Los datos del ticket de una venta cobrada, para imprimirlo o volver a imprimirlo. */
+    @GetMapping("/ventas/{pedidoId}/ticket")
+    public TicketVentaDto ticket(@PathVariable Long pedidoId) {
+        return tickets.ticket(pedidoId);
     }
 
     /** Anular una venta ya cobrada: solo el administrador (ver SecurityConfig). */

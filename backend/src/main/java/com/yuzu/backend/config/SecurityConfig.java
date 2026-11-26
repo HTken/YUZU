@@ -77,6 +77,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/inventario/**").hasRole("ADMIN")
                 // Informes (ventas, productos, insumos): solo el administrador.
                 .requestMatchers("/api/informes/**").hasRole("ADMIN")
+                // Datos del negocio (razón social, RUC, ticket): solo el administrador. El ticket de una venta
+                // lo piden el administrador y el cajero por /api/caja.
+                .requestMatchers("/api/negocio/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth -> oauth
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(convertidorJwt())));
