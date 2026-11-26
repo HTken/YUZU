@@ -48,6 +48,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login", "/api/plataforma/auth/login", "/error").permitAll()
+                // Lo que llama Culqi, no el navegador: no manda ningún token (ver CulqiWebhookController).
+                .requestMatchers("/api/pagos/culqi/webhook").permitAll()
                 .requestMatchers("/api/plataforma/**").hasRole("SUPERADMIN")
                 .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                 .requestMatchers("/api/pagos/**").hasRole("ADMIN")

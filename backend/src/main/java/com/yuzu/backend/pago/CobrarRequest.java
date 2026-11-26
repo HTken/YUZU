@@ -1,5 +1,6 @@
 package com.yuzu.backend.pago;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -10,6 +11,9 @@ import jakarta.validation.constraints.Pattern;
 /**
  * Lo único que manda el navegador: el token que creó Culqi y cuántos meses quiere pagar.
  * El monto NO viene del navegador: el servidor lo calcula con el plan del restaurante.
+ *
+ * deviceFingerPrintId y authentication3DS son del flujo de autenticación 3DS (Culqi3DS): el primero se
+ * manda siempre que se tenga, el segundo solo en el reintento, después de que el banco autenticó al cliente.
  */
 public record CobrarRequest(
         @NotBlank(message = "Falta el identificador del pago")
@@ -23,5 +27,10 @@ public record CobrarRequest(
 
         @NotBlank(message = "Falta el correo del pago")
         @Email(message = "El correo no es válido")
-        String email) {
+        String email,
+
+        String deviceFingerPrintId,
+
+        @Valid
+        Autenticacion3DSRequest authentication3DS) {
 }

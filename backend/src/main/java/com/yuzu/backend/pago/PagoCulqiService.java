@@ -61,10 +61,25 @@ public class PagoCulqiService {
                 "restaurante_id", String.valueOf(restauranteId),
                 "meses", String.valueOf(request.meses()),
                 "plan", plan.plan()));
+        if (request.deviceFingerPrintId() != null && !request.deviceFingerPrintId().isBlank()) {
+            cuerpo.put("antifraud_details", Map.of("device_finger_print_id", request.deviceFingerPrintId()));
+        }
+        if (request.authentication3DS() != null) {
+            Autenticacion3DSRequest a = request.authentication3DS();
+            cuerpo.put("authentication_3DS", Map.of(
+                    "eci", a.eci(),
+                    "xid", a.xid(),
+                    "cavv", a.cavv(),
+                    "protocolVersion", a.protocolVersion(),
+                    "directoryServerTransactionId", a.directoryServerTransactionId()));
+        }
 
         RespuestaCulqi respuesta = culqi.crearCargo(cuerpo);
         log.info("Culqi respondió al cargo: {}", respuesta.resumen());
 
+        if (respuesta.necesitaAutenticacion3DS()) {
+            throw new Requiere3DSException();
+        }
         if (!respuesta.ventaExitosa()) {
             throw rechazo(respuesta);
         }
@@ -88,11 +103,6 @@ public class PagoCulqiService {
     }
 
     private ResponseStatusException rechazo(RespuestaCulqi respuesta) {
-        if (respuesta.texto("action_code") != null) {
-            return new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED,
-                    "Tu banco pide una verificación adicional (3D Secure), que todavía no está disponible. "
-                            + "Prueba con otra tarjeta o con Yape.");
-        }
         String motivo = respuesta.mensajeUsuario();
         return new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED,
                 motivo != null

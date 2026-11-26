@@ -44,4 +44,8 @@ public class Plan {
 
     @Column(nullable = false)
     private boolean activo = true;
+
+    /** El plan recurrente en Culqi que cobra este plan cada mes. Se crea solo, la primera vez que hace falta. */
+    @Column(name = "culqi_plan_id", length = 40)
+    private String culqiPlanId;
 }
