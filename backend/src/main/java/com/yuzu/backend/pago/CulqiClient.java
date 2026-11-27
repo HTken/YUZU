@@ -88,14 +88,6 @@ public class CulqiClient {
         return delete("/recurrent/subscriptions/" + id);
     }
 
-    /**
-     * El detalle verificado de un evento, consultado con nuestra llave secreta. Nunca se usan los datos
-     * que trae el webhook tal cual: solo su id, para pedirle a Culqi el evento real con este método.
-     */
-    public RespuestaCulqi obtenerEvento(String id) {
-        return get("/events/" + id);
-    }
-
     // ------------------------------------------------------------------------------------- ayudas HTTP
 
     private RespuestaCulqi post(String uri, Map<String, Object> cuerpo) {

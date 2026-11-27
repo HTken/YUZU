@@ -23,14 +23,16 @@ import com.yuzu.backend.suscripcion.SuscripcionService;
 import com.yuzu.backend.usuario.Usuario;
 import com.yuzu.backend.usuario.UsuarioRepository;
 
+import tools.jackson.databind.ObjectMapper;
+
 /**
  * El cobro automático del plan con una tarjeta guardada: Cliente + Tarjeta + Plan recurrente +
  * Suscripción de Culqi. Culqi cobra solo, cada mes, y avisa el resultado por webhook
- * (ver {@link #procesarEvento}): el webhook es la única forma en que una renovación automática
+ * (ver {@link #procesarWebhook}): el webhook es la única forma en que una renovación automática
  * llega a reflejarse en la suscripción del restaurante, también la primera vez.
  *
- * El webhook nunca se confía tal cual: solo se usa su id para preguntarle a la API de Culqi
- * (con la llave secreta) el evento y la suscripción reales.
+ * El webhook nunca se confía tal cual: antes de registrar un cobro, siempre se vuelve a consultar
+ * la suscripción real en la API de Culqi (con la llave secreta).
  */
 @Service
 public class CulqiSuscripcionService {
@@ -47,6 +49,7 @@ public class CulqiSuscripcionService {
     private final UsuarioRepository usuarios;
     private final SuscripcionService suscripcion;
     private final NegocioService negocio;
+    private final ObjectMapper objectMapper;
 
     public CulqiSuscripcionService(CulqiClient culqi,
                                    CulqiSuscripcionRepository culqiSuscripciones,
@@ -54,7 +57,8 @@ public class CulqiSuscripcionService {
                                    RestauranteRepository restaurantes,
                                    UsuarioRepository usuarios,
                                    SuscripcionService suscripcion,
-                                   NegocioService negocio) {
+                                   NegocioService negocio,
+                                   ObjectMapper objectMapper) {
         this.culqi = culqi;
         this.culqiSuscripciones = culqiSuscripciones;
         this.planes = planes;
@@ -62,6 +66,7 @@ public class CulqiSuscripcionService {
         this.usuarios = usuarios;
         this.suscripcion = suscripcion;
         this.negocio = negocio;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -174,46 +179,80 @@ public class CulqiSuscripcionService {
     }
 
     /**
-     * Procesa un aviso del webhook: solo se usa el id para pedirle a Culqi el evento real, y nunca se
-     * confía en lo que haya llegado en el cuerpo del webhook. Nunca lanza una excepción hacia afuera:
-     * el webhook siempre debe responder 200 para que Culqi no reintente de más.
+     * Procesa un aviso del webhook. Nunca lanza una excepción hacia afuera: el webhook siempre debe
+     * responder 200 para que Culqi no reintente de más.
+     *
+     * Ojo: la API de Culqi para "consultar un evento" (GET /v2/events/{id}) no encuentra los eventos
+     * que manda el webhook en el entorno de prueba ("No existe el evento que intentas consultar"), así
+     * que no se puede usar como verificación. En su lugar, para cualquier cosa que implique dinero
+     * (registrar un cobro) siempre se vuelve a consultar la SUSCRIPCIÓN real en la API (eso sí
+     * funciona): si alguien falsifica un aviso con un id de suscripción inventado, esa consulta no
+     * encuentra nada y no pasa nada; si el id es real pero el aviso miente, lo que se registra sale de
+     * la suscripción verdadera, nunca de lo que haya dicho el webhook.
      */
     @Transactional
-    public void procesarEvento(String eventoId) {
+    public void procesarWebhook(Map<String, Object> cuerpo) {
         try {
-            RespuestaCulqi evento = culqi.obtenerEvento(eventoId);
-            if (!evento.esExitosa()) {
-                log.warn("No se pudo verificar el evento de Culqi {} (http={}): {}",
-                        eventoId, evento.estado(), evento.cuerpo());
+            String tipo = cuerpo == null ? null : campo(cuerpo, "type");
+            if (tipo == null) {
+                log.warn("Webhook de Culqi sin tipo: {}", cuerpo);
                 return;
             }
-            String tipo = evento.texto("type");
-            if (tipo == null) {
-                log.warn("El evento de Culqi {} no tiene tipo", eventoId);
-            } else if (tipo.startsWith("subscription.")) {
-                procesarEventoSuscripcion(eventoId, tipo, evento);
-            } else {
-                log.info("Evento de Culqi {} ({}) no requiere acción", eventoId, tipo);
+            if (!tipo.startsWith("subscription.")) {
+                log.info("Evento de Culqi ({}) no requiere acción", tipo);
+                return;
+            }
+
+            String suscripcionId = idDeSuscripcion(cuerpo.get("data"));
+            if (suscripcionId == null) {
+                log.warn("El webhook ({}) no trae el id de la suscripción: {}", tipo, cuerpo);
+                return;
+            }
+
+            switch (ReglasCulqiSuscripcion.accionParaEvento(tipo)) {
+                case REGISTRAR_COBRO -> registrarCobroExitoso(suscripcionId);
+                case COBRO_FALLIDO -> log.warn("Falló el cobro automático de la suscripción {}", suscripcionId);
+                case CANCELAR -> marcarInactiva(suscripcionId);
+                case NINGUNA -> log.info("Evento de suscripción {} ({}) no requiere acción", suscripcionId, tipo);
             }
         } catch (RuntimeException e) {
-            log.error("No se pudo procesar el evento de Culqi {}: {}", eventoId, e.toString());
+            log.error("No se pudo procesar el webhook de Culqi {}: {}", cuerpo, e.toString());
         }
     }
 
-    private void procesarEventoSuscripcion(String eventoId, String tipo, RespuestaCulqi evento) {
-        Map<?, ?> data = evento.mapa("data");
-        String suscripcionId = campo(data, "id");
-        if (suscripcionId == null) {
-            log.warn("El evento {} ({}) no trae el id de la suscripción", eventoId, tipo);
-            return;
+    /**
+     * El id de la suscripción dentro de "data": a veces viene como el objeto mismo ("id"), y a veces
+     * (en las pruebas que hicimos) como texto JSON anidado en "message.object.subsId". Se prueban los
+     * dos casos porque Culqi no documenta este formato con claridad.
+     */
+    private String idDeSuscripcion(Object data) {
+        Map<?, ?> mapa = comoMapaDeJson(data);
+        if (mapa == null) {
+            return null;
         }
+        String directo = campo(mapa, "id");
+        if (directo != null) {
+            return directo;
+        }
+        Map<?, ?> mensaje = comoMapa(mapa.get("message"));
+        Map<?, ?> objeto = mensaje != null ? comoMapa(mensaje.get("object")) : null;
+        return campo(objeto, "subsId");
+    }
 
-        switch (ReglasCulqiSuscripcion.accionParaEvento(tipo)) {
-            case REGISTRAR_COBRO -> registrarCobroExitoso(suscripcionId);
-            case COBRO_FALLIDO -> log.warn("Falló el cobro automático de la suscripción {}", suscripcionId);
-            case CANCELAR -> marcarInactiva(suscripcionId);
-            case NINGUNA -> log.info("Evento de suscripción {} ({}) no requiere acción", suscripcionId, tipo);
+    /** Igual que comoMapa, pero además intenta leer un texto como si fuera JSON. */
+    private Map<?, ?> comoMapaDeJson(Object valor) {
+        if (valor instanceof Map<?, ?> mapa) {
+            return mapa;
         }
+        if (valor instanceof String texto && !texto.isBlank()) {
+            try {
+                return objectMapper.readValue(texto, Map.class);
+            } catch (RuntimeException e) {
+                log.warn("No se pudo leer como JSON el campo 'data' del webhook: {}", texto);
+                return null;
+            }
+        }
+        return null;
     }
 
     private void registrarCobroExitoso(String suscripcionId) {

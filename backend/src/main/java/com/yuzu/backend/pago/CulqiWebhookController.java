@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
  * Se configura a mano en el CulqiPanel (sección Eventos, Webhooks), pegando la URL pública de este
  * endpoint. No pasa por el login (ver SecurityConfig): Culqi no manda ningún token.
  *
- * Culqi no firma sus webhooks, así que nunca se confía en lo que manda el cuerpo de la petición: solo
- * se usa el id del evento para preguntarle a la API de Culqi, con nuestra llave secreta, qué pasó de
- * verdad (ver CulqiSuscripcionService.procesarEvento).
+ * Culqi no firma sus webhooks, así que no se confía en el cuerpo de la petición para registrar nada
+ * que implique dinero: antes de eso, siempre se vuelve a consultar la suscripción real en la API
+ * (ver CulqiSuscripcionService.procesarWebhook).
  */
 @RestController
 @RequestMapping("/api/pagos/culqi")
@@ -34,12 +34,7 @@ public class CulqiWebhookController {
     @PostMapping("/webhook")
     public Map<String, String> webhook(@RequestBody(required = false) Map<String, Object> cuerpo) {
         log.info("Webhook de Culqi recibido: {}", cuerpo);
-        Object id = cuerpo == null ? null : cuerpo.get("id");
-        if (id == null) {
-            log.warn("Webhook de Culqi sin id de evento: {}", cuerpo);
-        } else {
-            servicio.procesarEvento(id.toString());
-        }
+        servicio.procesarWebhook(cuerpo);
         return Map.of("recibido", "ok");
     }
 }
