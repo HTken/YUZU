@@ -99,6 +99,7 @@ public class CulqiSuscripcionService {
             throw new Requiere3DSException();
         }
         if (!"card".equals(tarjetaResp.texto("object"))) {
+            log.warn("Culqi no guardó la tarjeta (http={}): {}", tarjetaResp.estado(), tarjetaResp.cuerpo());
             String motivo = tarjetaResp.mensajeUsuario();
             throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED,
                     motivo != null ? motivo : "No se pudo guardar la tarjeta. Prueba de nuevo o usa otra tarjeta.");
@@ -116,6 +117,7 @@ public class CulqiSuscripcionService {
 
         RespuestaCulqi suscripcionResp = culqi.crearSuscripcion(cuerpoSuscripcion);
         if (!suscripcionResp.esExitosa()) {
+            log.warn("Culqi no creó la suscripción (http={}): {}", suscripcionResp.estado(), suscripcionResp.cuerpo());
             String motivo = suscripcionResp.mensajeUsuario();
             throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED,
                     motivo != null ? motivo : "No se pudo activar el cobro automático. Inténtalo de nuevo.");
@@ -151,6 +153,8 @@ public class CulqiSuscripcionService {
 
         RespuestaCulqi resp = culqi.cancelarSuscripcion(fila.getCulqiSuscripcionId());
         if (!resp.esExitosa()) {
+            log.warn("Culqi no canceló la suscripción {} (http={}): {}",
+                    fila.getCulqiSuscripcionId(), resp.estado(), resp.cuerpo());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "No se pudo cancelar el cobro automático en Culqi. Inténtalo de nuevo.");
         }
@@ -259,6 +263,7 @@ public class CulqiSuscripcionService {
         RespuestaCulqi resp = culqi.crearPlanRecurrente(cuerpo);
         String id = resp.texto("id");
         if (!resp.esExitosa() || id == null) {
+            log.warn("Culqi no creó el plan recurrente (http={}): {}", resp.estado(), resp.cuerpo());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "No se pudo preparar el cobro automático en Culqi. Inténtalo de nuevo.");
         }
@@ -288,6 +293,7 @@ public class CulqiSuscripcionService {
         RespuestaCulqi resp = culqi.crearCliente(cuerpo);
         String id = resp.texto("id");
         if (!"customer".equals(resp.texto("object")) || id == null) {
+            log.warn("Culqi no creó el cliente (http={}): {}", resp.estado(), resp.cuerpo());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "No se pudo registrar tus datos de pago en Culqi. Inténtalo de nuevo.");
         }
