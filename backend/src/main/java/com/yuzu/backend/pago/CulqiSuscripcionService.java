@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.yuzu.backend.config.SesionActual;
+import com.yuzu.backend.negocio.NegocioDto;
+import com.yuzu.backend.negocio.NegocioService;
 import com.yuzu.backend.plan.Plan;
 import com.yuzu.backend.plan.PlanRepository;
 import com.yuzu.backend.restaurante.Restaurante;
@@ -44,19 +46,22 @@ public class CulqiSuscripcionService {
     private final RestauranteRepository restaurantes;
     private final UsuarioRepository usuarios;
     private final SuscripcionService suscripcion;
+    private final NegocioService negocio;
 
     public CulqiSuscripcionService(CulqiClient culqi,
                                    CulqiSuscripcionRepository culqiSuscripciones,
                                    PlanRepository planes,
                                    RestauranteRepository restaurantes,
                                    UsuarioRepository usuarios,
-                                   SuscripcionService suscripcion) {
+                                   SuscripcionService suscripcion,
+                                   NegocioService negocio) {
         this.culqi = culqi;
         this.culqiSuscripciones = culqiSuscripciones;
         this.planes = planes;
         this.restaurantes = restaurantes;
         this.usuarios = usuarios;
         this.suscripcion = suscripcion;
+        this.negocio = negocio;
     }
 
     @Transactional(readOnly = true)
@@ -317,10 +322,22 @@ public class CulqiSuscripcionService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sesión no válida"));
         String[] nombre = ReglasCulqiSuscripcion.partirNombre(admin.getNombre());
 
+        // Culqi exige dirección y teléfono para crear el cliente: sin esto no se puede activar el cobro automático.
+        NegocioDto datosNegocio = negocio.datos(restauranteId);
+        if (datosNegocio.direccion() == null || datosNegocio.telefono() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Para activar el cobro automático, primero completa la dirección y el teléfono en "
+                            + "Configuración > Datos del negocio.");
+        }
+
         Map<String, Object> cuerpo = new LinkedHashMap<>();
         cuerpo.put("first_name", nombre[0]);
         cuerpo.put("last_name", nombre[1]);
         cuerpo.put("email", email);
+        cuerpo.put("address", datosNegocio.direccion());
+        cuerpo.put("address_city", "Lima");
+        cuerpo.put("country_code", "PE");
+        cuerpo.put("phone_number", ReglasCulqiSuscripcion.telefonoCulqi(datosNegocio.telefono()));
 
         RespuestaCulqi resp = culqi.crearCliente(cuerpo);
         String id = resp.texto("id");

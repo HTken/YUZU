@@ -37,4 +37,10 @@ final class ReglasCulqiSuscripcion {
                 ? new String[] {limpio, limpio}
                 : new String[] {limpio.substring(0, espacio), limpio.substring(espacio + 1)};
     }
+
+    /** Culqi solo acepta de 5 a 15 caracteres en el teléfono: se limpia lo que haya escrito el administrador. */
+    static String telefonoCulqi(String telefono) {
+        String limpio = telefono.replaceAll("[^0-9]", "");
+        return limpio.length() > 15 ? limpio.substring(0, 15) : limpio;
+    }
 }

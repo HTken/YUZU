@@ -62,4 +62,22 @@ class ReglasCulqiSuscripcionTest {
     void limpiaEspaciosDeMasYAlRededor() {
         assertThat(ReglasCulqiSuscripcion.partirNombre("  Juan   Pérez  ")).containsExactly("Juan", "Pérez");
     }
+
+    // ----------------------------------------------------------------- telefonoCulqi
+
+    @Test
+    void dejaSoloLosDigitosDelTelefono() {
+        assertThat(ReglasCulqiSuscripcion.telefonoCulqi("+51 (01) 987-654.321")).isEqualTo("5101987654321");
+    }
+
+    @Test
+    void cortaElTelefonoALosQuinceDigitosQueAceptaCulqi() {
+        assertThat(ReglasCulqiSuscripcion.telefonoCulqi("+51 (01) 987-654.321")).hasSize(13);
+        assertThat(ReglasCulqiSuscripcion.telefonoCulqi("123456789012345678")).hasSize(15);
+    }
+
+    @Test
+    void unTelefonoYaLimpioQuedaIgual() {
+        assertThat(ReglasCulqiSuscripcion.telefonoCulqi("987654321")).isEqualTo("987654321");
+    }
 }
