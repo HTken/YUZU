@@ -16,4 +16,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     boolean existsByRestauranteIdAndUsuario(Long restauranteId, String usuario);
 
     long countByRestauranteIdAndActivoTrue(Long restauranteId);
+
+    /** Para avisar por correo del vencimiento: los administradores activos que sí dejaron un correo. */
+    List<Usuario> findByRestauranteIdAndRolAndActivoTrueAndEmailIsNotNull(Long restauranteId, String rol);
 }

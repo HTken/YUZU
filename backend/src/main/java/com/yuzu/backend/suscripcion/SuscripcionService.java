@@ -35,7 +35,9 @@ public class SuscripcionService {
     private final MesaRepository mesas;
     private final InsumoRepository insumos;
     private final PagoRepository pagos;
+    private final AvisoVencimientoService avisoVencimiento;
     private final int diasGracia;
+    private final int diasAviso;
 
     public SuscripcionService(RestauranteRepository restaurantes,
                               PlanRepository planes,
@@ -44,7 +46,9 @@ public class SuscripcionService {
                               MesaRepository mesas,
                               InsumoRepository insumos,
                               PagoRepository pagos,
-                              @Value("${yuzu.suscripcion.dias-gracia:3}") int diasGracia) {
+                              AvisoVencimientoService avisoVencimiento,
+                              @Value("${yuzu.suscripcion.dias-gracia:3}") int diasGracia,
+                              @Value("${yuzu.suscripcion.dias-aviso:3}") int diasAviso) {
         this.restaurantes = restaurantes;
         this.planes = planes;
         this.usuarios = usuarios;
@@ -52,7 +56,9 @@ public class SuscripcionService {
         this.mesas = mesas;
         this.insumos = insumos;
         this.pagos = pagos;
+        this.avisoVencimiento = avisoVencimiento;
         this.diasGracia = diasGracia;
+        this.diasAviso = diasAviso;
     }
 
     @Transactional(readOnly = true)
@@ -193,6 +199,8 @@ public class SuscripcionService {
      * Revisa los vencimientos:
      * activo con fecha pasada pasa a "en gracia" y, cuando la gracia termina, a "suspendido".
      * Los restaurantes suspendidos a mano no se tocan.
+     * De paso, avisa por correo al administrador: cuando cambia de estado, y cuando el plan todavía está
+     * activo pero vence pronto (sin que eso cambie ningún estado).
      */
     @Transactional
     public ResultadoVencimientosDto procesarVencimientos() {
@@ -203,21 +211,31 @@ public class SuscripcionService {
         for (Restaurante r : restaurantes.findByEstadoAndVenceEnBefore("ACTIVO", hoy)) {
             if (hoy.isAfter(r.getVenceEn().plusDays(diasGracia))) {
                 r.setEstado("SUSPENDIDO");
+                restaurantes.save(r);
                 suspendidos++;
+                avisoVencimiento.avisarSuspendido(r);
             } else {
                 r.setEstado("EN_GRACIA");
+                restaurantes.save(r);
                 aGracia++;
+                avisoVencimiento.avisarEnGracia(r, diasGracia);
             }
-            restaurantes.save(r);
         }
 
         for (Restaurante r : restaurantes.findByEstadoAndVenceEnBefore("EN_GRACIA", hoy.minusDays(diasGracia))) {
             r.setEstado("SUSPENDIDO");
             restaurantes.save(r);
             suspendidos++;
+            avisoVencimiento.avisarSuspendido(r);
         }
 
-        return new ResultadoVencimientosDto(aGracia, suspendidos);
+        int avisados = 0;
+        for (Restaurante r : restaurantes.findByEstadoAndVenceEn("ACTIVO", hoy.plusDays(diasAviso))) {
+            avisoVencimiento.avisarProximoAVencer(r, diasAviso);
+            avisados++;
+        }
+
+        return new ResultadoVencimientosDto(aGracia, suspendidos, avisados);
     }
 
     private Restaurante restaurante(Long id) {

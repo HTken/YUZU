@@ -13,15 +13,63 @@ respuestas van **en español**.
 | `app-plataforma/` | Angular: consola de YUZU para administrar restaurantes, planes y cobranzas (rol `SUPERADMIN`) | 4300 |
 
 Módulos hechos: planes y vencimientos, Culqi (cobro manual, 3D Secure y cobro automático por suscripción),
-usuarios, productos, mesas, pedidos, caja, cocina, inventario, recetas, informes, anulación de ventas
-cobradas, ticket de venta y datos del negocio.
-Migraciones Flyway: `V2` a `V16` (la última es `V16__culqi_suscripciones.sql`).
+avisos de vencimiento por correo, usuarios, productos, mesas, pedidos, caja, cocina, inventario, recetas,
+informes, anulación de ventas cobradas, ticket de venta y datos del negocio.
+Migraciones Flyway: `V2` a `V16` (la última es `V16__culqi_suscripciones.sql`; este módulo no necesitó una
+nueva porque no agrega tablas ni columnas).
 
 ## Estado actual
 
-Última sesión (27 nov 2026): cobro recurrente + webhook + 3D Secure de Culqi, **probado de verdad** con
-tarjetas de prueba y un túnel ngrok hacia tu backend local (antes de esto se verificó que todo compilaba
-y se agregaron las primeras pruebas automáticas reales, ver más abajo).
+Última sesión (27 nov 2026): avisos de vencimiento por correo (ver justo abajo). Antes de esto, en la misma
+fecha: cobro recurrente + webhook + 3D Secure de Culqi, **probado de verdad** con tarjetas de prueba y un
+túnel ngrok hacia tu backend local (antes de esto se verificó que todo compilaba y se agregaron las primeras
+pruebas automáticas reales, ver más abajo).
+
+**Avisos de vencimiento por correo**
+
+Cuando se "revisa vencimientos" (botón en app-plataforma, o se puede llamar por cron/tarea programada),
+además de pasar restaurantes a "en gracia" o "suspendido" como ya hacía, ahora también manda un correo al
+o a los administradores del restaurante (rol `ADMIN`, activos, con correo registrado) en tres casos:
+
+- El plan **todavía está activo** pero vence en `yuzu.suscripcion.dias-aviso` días (3 por defecto) — no
+  cambia de estado, solo avisa.
+- El restaurante **acaba de pasar a "en gracia"** (venció, pero todavía puede pagar).
+- El restaurante **acaba de ser suspendido** (se acabó la gracia).
+
+Lógica nueva: `ReglasAvisoVencimiento` (clase de reglas, probada con JUnit: construye el asunto y el cuerpo
+del correo en español para cada uno de los 3 casos, con singular/plural de "día"/"días") y
+`AvisoVencimientoService` (busca los administradores con correo del restaurante y los manda por
+`JavaMailSender`). `SuscripcionService.procesarVencimientos()` ahora también devuelve cuántos restaurantes
+fueron avisados (`ResultadoVencimientosDto.avisados`), y `app-plataforma` lo muestra en el mensaje de
+"Revisar vencimientos".
+
+**No se necesitó envío de correo real para probar esto**: si no configuras un servidor de correo, el
+backend simplemente no manda nada y deja un aviso en el log (`WARN`), sin fallar — así que "Revisar
+vencimientos" sigue funcionando igual aunque no tengas correo configurado. Para mandar correos de verdad en
+tu PC, agrega en tu `application-local.properties` (que nunca se sube) algo como:
+
+```properties
+spring.mail.host=smtp.tu-proveedor.com
+spring.mail.port=587
+spring.mail.username=tu-correo@tudominio.com
+spring.mail.password=tu-clave-o-token-de-aplicacion
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+yuzu.correo.remitente=no-responder@tudominio.com
+```
+
+(Cualquier proveedor SMTP sirve — Gmail con una "contraseña de aplicación", un dominio propio, etc. Nunca
+pongas esas claves en el chat ni en el código, solo en ese archivo.)
+
+Se agregaron 4 pruebas JUnit nuevas (`ReglasAvisoVencimientoTest`, las 4 en verde) y se confirmó
+`mvn clean test` (97 pruebas en total, todas en verde), `ng build` de `app-plataforma` y `ng build` de
+`app-cliente` (este último no se tocó, solo se confirmó que sigue compilando).
+
+Archivos nuevos o modificados — `backend/`: `pom.xml` (dependencia `spring-boot-starter-mail`),
+`RestauranteRepository.java`, `UsuarioRepository.java`, `SuscripcionService.java`,
+`ResultadoVencimientosDto.java`, y nuevos `ReglasAvisoVencimiento.java` y `AvisoVencimientoService.java`
+(paquete `suscripcion`), más `ReglasAvisoVencimientoTest.java`. `app-plataforma/`: `plataforma.api.ts`
+(campo `avisados`) y `restaurantes.ts` (mensaje de la revisión). `app-cliente/`: sin cambios.
 
 **Culqi: 3D Secure, webhook y cobro automático**
 
@@ -139,8 +187,8 @@ documentación de Culqi no dice bien, y se fueron arreglando una por una:
 
 ## Pendientes propuestos (el dueño decide el orden)
 
-Facturación electrónica SUNAT, avisos de vencimiento por correo, despliegue, límite de intentos de login y
-2FA, cookie httpOnly en lugar de guardar el token en el navegador, exportar informes a CSV.
+Facturación electrónica SUNAT, despliegue, límite de intentos de login y 2FA, cookie httpOnly en lugar de
+guardar el token en el navegador, exportar informes a CSV.
 
 ## Sincronización entre módulos (backend + frontends)
 

@@ -33,6 +33,8 @@ export interface PlanInfo {
 export interface ResultadoVencimientos {
   aGracia: number;
   suspendidos: number;
+  /** A cuántos restaurantes se les avisó por correo que su plan vence pronto (sin cambiar de estado). */
+  avisados: number;
 }
 
 export interface RestauranteCrear {

@@ -4,7 +4,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { Observable } from 'rxjs';
 
 import { etiquetaEstado, formatearFecha, textoVencimiento } from '../../core/formato';
-import { PlanInfo, PlataformaApi, RestauranteResumen } from '../../core/plataforma.api';
+import { PlanInfo, PlataformaApi, ResultadoVencimientos, RestauranteResumen } from '../../core/plataforma.api';
 
 type Modo = 'nuevo' | 'renovar' | 'plan' | 'suspender' | 'reactivar';
 
@@ -135,11 +135,7 @@ export class Restaurantes implements OnInit {
     this.api.revisarVencimientos().subscribe({
       next: (r) => {
         this.revisando.set(false);
-        this.resultadoRevision.set(
-          r.aGracia === 0 && r.suspendidos === 0
-            ? 'Todo al día: ningún restaurante cambió de estado.'
-            : `${r.aGracia} pasaron a gracia y ${r.suspendidos} fueron suspendidos.`,
-        );
+        this.resultadoRevision.set(this.mensajeRevision(r));
         this.cargar();
       },
       error: (e: HttpErrorResponse) => {
@@ -147,6 +143,24 @@ export class Restaurantes implements OnInit {
         this.resultadoRevision.set(e.error?.mensaje ?? 'No se pudo revisar los vencimientos.');
       },
     });
+  }
+
+  private mensajeRevision(r: ResultadoVencimientos): string {
+    if (r.aGracia === 0 && r.suspendidos === 0 && r.avisados === 0) {
+      return 'Todo al día: ningún restaurante cambió de estado ni necesitaba un aviso.';
+    }
+
+    const partes: string[] = [];
+    if (r.aGracia > 0) {
+      partes.push(`${r.aGracia} pasaron a gracia`);
+    }
+    if (r.suspendidos > 0) {
+      partes.push(`${r.suspendidos} fueron suspendidos`);
+    }
+    if (r.avisados > 0) {
+      partes.push(`se avisó por correo a ${r.avisados} que su plan vence pronto`);
+    }
+    return partes.join(', ') + '.';
   }
 
   protected claseVencimiento(r: RestauranteResumen): string {
