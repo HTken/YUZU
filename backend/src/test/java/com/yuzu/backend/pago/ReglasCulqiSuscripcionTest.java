@@ -23,6 +23,12 @@ class ReglasCulqiSuscripcionTest {
     }
 
     @Test
+    void unUpdateExitosoTambienSeRegistraPorqueElPanelDeCulqiNoOfreceCharge() {
+        assertThat(ReglasCulqiSuscripcion.accionParaEvento("subscription.update.succeeded"))
+                .isEqualTo(AccionEvento.REGISTRAR_COBRO);
+    }
+
+    @Test
     void unaCancelacionMarcaLaSuscripcionInactiva() {
         assertThat(ReglasCulqiSuscripcion.accionParaEvento("subscription.cancel.succeeded"))
                 .isEqualTo(AccionEvento.CANCELAR);

@@ -17,9 +17,16 @@ final class ReglasCulqiSuscripcion {
     private ReglasCulqiSuscripcion() {
     }
 
+    /**
+     * La documentación de Culqi llama a estos eventos "subscription.charge.succeeded/failed", pero el
+     * propio CulqiPanel (al crear el webhook) solo deja elegir "creation", "update" o "cancel": un cobro
+     * de la suscripción dispara "subscription.update", no "subscription.charge". Se aceptan los dos
+     * nombres por si acaso; de todas formas, antes de registrar un cobro siempre se vuelve a consultar
+     * la suscripción real en la API, así que un "update" que no sea un cobro nuevo no hace nada.
+     */
     static AccionEvento accionParaEvento(String tipo) {
         return switch (tipo) {
-            case "subscription.charge.succeeded" -> AccionEvento.REGISTRAR_COBRO;
+            case "subscription.charge.succeeded", "subscription.update.succeeded" -> AccionEvento.REGISTRAR_COBRO;
             case "subscription.charge.failed" -> AccionEvento.COBRO_FALLIDO;
             case "subscription.cancel.succeeded" -> AccionEvento.CANCELAR;
             default -> AccionEvento.NINGUNA;
