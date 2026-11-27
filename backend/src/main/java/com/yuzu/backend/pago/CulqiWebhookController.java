@@ -33,6 +33,7 @@ public class CulqiWebhookController {
     /** Siempre responde 200: si no, Culqi reintenta de más el mismo aviso. */
     @PostMapping("/webhook")
     public Map<String, String> webhook(@RequestBody(required = false) Map<String, Object> cuerpo) {
+        log.info("Webhook de Culqi recibido: {}", cuerpo);
         Object id = cuerpo == null ? null : cuerpo.get("id");
         if (id == null) {
             log.warn("Webhook de Culqi sin id de evento: {}", cuerpo);

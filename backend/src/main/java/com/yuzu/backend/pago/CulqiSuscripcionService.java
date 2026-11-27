@@ -183,7 +183,8 @@ public class CulqiSuscripcionService {
         try {
             RespuestaCulqi evento = culqi.obtenerEvento(eventoId);
             if (!evento.esExitosa()) {
-                log.warn("No se pudo verificar el evento de Culqi {} (http={})", eventoId, evento.estado());
+                log.warn("No se pudo verificar el evento de Culqi {} (http={}): {}",
+                        eventoId, evento.estado(), evento.cuerpo());
                 return;
             }
             String tipo = evento.texto("type");
