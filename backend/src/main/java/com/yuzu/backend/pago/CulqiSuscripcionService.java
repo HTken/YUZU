@@ -2,6 +2,7 @@ package com.yuzu.backend.pago;
 
 import java.math.RoundingMode;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -70,8 +71,11 @@ public class CulqiSuscripcionService {
      * Guarda la tarjeta y activa el cobro automático. Culqi valida la tarjeta con un cargo mínimo de
      * S/ 3.00 que devuelve de inmediato (no es un cobro real). Si el banco pide 3D Secure, lanza
      * {@link Requiere3DSException} y hay que reintentar con el resultado de Culqi3DS.
+     *
+     * Ojo: a propósito este método NO es una sola transacción. Lo que se crea en Culqi (el plan, la
+     * tarjeta, la suscripción) no se puede deshacer si algo falla después, así que cada cosa se guarda
+     * en nuestra base apenas se confirma en Culqi, para no perder esa referencia en un reintento.
      */
-    @Transactional
     public SuscripcionCulqiDto activar(ActivarSuscripcionRequest request) {
         if (!culqi.estaConfigurado()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "El pago en línea todavía no está disponible.");
@@ -247,11 +251,12 @@ public class CulqiSuscripcionService {
             return plan.getCulqiPlanId();
         }
 
+        String shortName = "yuzu-" + plan.getCodigo().toLowerCase();
         long centimos = plan.getPrecioMensual().movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact();
 
         Map<String, Object> cuerpo = new LinkedHashMap<>();
         cuerpo.put("name", "Yuzu - " + plan.getNombre());
-        cuerpo.put("short_name", "yuzu-" + plan.getCodigo().toLowerCase());
+        cuerpo.put("short_name", shortName);
         cuerpo.put("description", "Suscripción mensual al plan " + plan.getNombre() + " de Yuzu");
         cuerpo.put("amount", centimos);
         cuerpo.put("currency", "PEN");
@@ -262,7 +267,14 @@ public class CulqiSuscripcionService {
 
         RespuestaCulqi resp = culqi.crearPlanRecurrente(cuerpo);
         String id = resp.texto("id");
-        if (!resp.esExitosa() || id == null) {
+
+        // Puede haber quedado creado en Culqi de un intento anterior que no se alcanzó a guardar aquí
+        // (por ejemplo, si después falló la tarjeta): en vez de fallar de nuevo, lo recuperamos.
+        if (!resp.esExitosa() && mensajeIndicaQueYaExiste(resp)) {
+            id = buscarPlanPorShortName(shortName);
+        }
+
+        if (id == null) {
             log.warn("Culqi no creó el plan recurrente (http={}): {}", resp.estado(), resp.cuerpo());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "No se pudo preparar el cobro automático en Culqi. Inténtalo de nuevo.");
@@ -271,6 +283,26 @@ public class CulqiSuscripcionService {
         plan.setCulqiPlanId(id);
         planes.save(plan);
         return id;
+    }
+
+    private static boolean mensajeIndicaQueYaExiste(RespuestaCulqi resp) {
+        String mensaje = resp.texto("merchant_message");
+        return mensaje != null && mensaje.toLowerCase().contains("ya existe");
+    }
+
+    private String buscarPlanPorShortName(String shortName) {
+        RespuestaCulqi resp = culqi.listarPlanesRecurrentes();
+        if (!resp.esExitosa()) {
+            return null;
+        }
+        Object datos = resp.cuerpo() == null ? null : resp.cuerpo().get("data");
+        List<?> listaPlanes = datos instanceof List<?> lista ? lista : datos instanceof Map<?, ?> uno ? List.of(uno) : List.of();
+        for (Object item : listaPlanes) {
+            if (item instanceof Map<?, ?> mapa && shortName.equals(campo(mapa, "short_name"))) {
+                return campo(mapa, "id");
+            }
+        }
+        return null;
     }
 
     /** El cliente de Culqi del restaurante: reusa el que ya tenía guardado, o crea uno nuevo. */

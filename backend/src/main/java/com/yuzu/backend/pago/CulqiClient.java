@@ -71,6 +71,11 @@ public class CulqiClient {
         return post("/recurrent/plans/create", cuerpo);
     }
 
+    /** Para recuperar el id de un plan que ya se había creado (por ejemplo, en un intento anterior). */
+    public RespuestaCulqi listarPlanesRecurrentes() {
+        return get("/recurrent/plans");
+    }
+
     public RespuestaCulqi crearSuscripcion(Map<String, Object> cuerpo) {
         return post("/recurrent/subscriptions/create", cuerpo);
     }
