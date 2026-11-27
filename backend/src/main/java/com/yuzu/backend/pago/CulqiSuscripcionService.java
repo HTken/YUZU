@@ -114,9 +114,10 @@ public class CulqiSuscripcionService {
                     motivo != null ? motivo : "No se pudo guardar la tarjeta. Prueba de nuevo o usa otra tarjeta.");
         }
         String cardId = tarjetaResp.texto("id");
-        Map<?, ?> token = tarjetaResp.mapa("token");
-        String ultimosCuatro = campo(token, "last_four");
-        String marca = campo(token != null ? comoMapa(token.get("iin")) : null, "card_brand");
+        // El objeto se llama "source" en la respuesta de Culqi (no "token", como dice su propia guía).
+        Map<?, ?> source = tarjetaResp.mapa("source");
+        String ultimosCuatro = campo(source, "last_four");
+        String marca = campo(source != null ? comoMapa(source.get("iin")) : null, "card_brand");
 
         Map<String, Object> cuerpoSuscripcion = new LinkedHashMap<>();
         cuerpoSuscripcion.put("card_id", cardId);
