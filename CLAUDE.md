@@ -19,45 +19,59 @@ Migraciones Flyway: `V2` a `V16` (la última es `V16__culqi_suscripciones.sql`).
 
 ## Estado actual
 
-Última sesión (26 nov 2026): cobro recurrente + webhook + 3D Secure de Culqi (módulo completo). Antes de
-esto se verificó que todo compilaba y se agregaron las primeras pruebas automáticas reales (ver más abajo).
+Última sesión (27 nov 2026): cobro recurrente + webhook + 3D Secure de Culqi, **probado de verdad** con
+tarjetas de prueba y un túnel ngrok hacia tu backend local (antes de esto se verificó que todo compilaba
+y se agregaron las primeras pruebas automáticas reales, ver más abajo).
 
-**Culqi: 3D Secure, webhook y cobro automático (módulo nuevo)**
+**Culqi: 3D Secure, webhook y cobro automático**
 
-Para esto leí la documentación oficial de Culqi (antes el entorno no tenía acceso a internet; se creó un
-entorno nuevo llamado "yuzu-culqi-docs" con acceso solo a `docs.culqi.com` y `apidocs.culqi.com` para
-poder leerla). Quedó:
+Se escribió siguiendo la documentación oficial de Culqi (se creó un entorno nuevo, "yuzu-culqi-docs", con
+acceso a `docs.culqi.com` y `apidocs.culqi.com`, porque antes el entorno no tenía internet) y después se
+probó en vivo contra la cuenta de prueba real del dueño. En el camino aparecieron varias cosas que la
+documentación de Culqi no dice bien, y se fueron arreglando una por una:
 
-- **3D Secure de verdad** en el cobro manual (botón "Pagar con tarjeta o Yape" de Mi Plan): si el banco lo
-  pide, el backend responde 428 y el frontend abre la autenticación de Culqi3DS
-  (`culqi.service.ts` → `Culqi3dsService`) y reintenta el cobro con el resultado. Antes esto se rechazaba
-  siempre con "todavía no está disponible".
-- **Cobro automático del plan** (sección nueva "Cobro automático" en Mi Plan): guardas una tarjeta (Culqi
-  le hace una validación de S/ 3.00 que devuelve de inmediato) y Culqi cobra solo cada mes, sin que el
-  restaurante tenga que entrar a pagar. También usa 3D Secure si el banco lo pide. Se puede cancelar
-  cuando se quiera.
-  - El Plan de cobro en Culqi (`planes.culqi_plan_id`) se crea solo, la primera vez que un restaurante
-    activa el cobro automático de ese plan: **no hace falta crear nada a mano en el CulqiPanel para esto.**
-  - Backend nuevo: `CulqiSuscripcion` (tabla `culqi_suscripciones`, V16), `CulqiSuscripcionService`,
-    `ReglasCulqiSuscripcion` (lógica pura, con pruebas), endpoints `GET/POST/DELETE /api/pagos/culqi/suscripcion`.
-- **Webhook**: `POST /api/pagos/culqi/webhook` (público, sin login: Culqi no manda token) recibe el aviso
-  de Culqi cuando cobra una suscripción (éxito, fallo o cancelación) y es la única forma en que una
-  renovación automática se refleja en el plan del restaurante — **incluida la primera renovación**.
-  Culqi no firma sus webhooks, así que el código nunca confía en lo que llega en el cuerpo: solo usa el
-  id del evento para preguntarle a la API de Culqi (con la llave secreta) qué pasó de verdad
-  (`CulqiSuscripcionService.procesarEvento`).
-  - **Pendiente de hacer a mano, tuyo:** entrar al CulqiPanel (de prueba primero, luego el de producción),
-    sección Eventos → Webhooks, y pegar ahí la URL pública de tu backend terminada en
-    `/api/pagos/culqi/webhook`. Sin esto, el cobro automático nunca actualiza el vencimiento del plan
-    (se cobra en Culqi pero Yuzu no se entera). En tu PC, local, necesitarías algo como ngrok para
-    probarlo de verdad; si prefieres, lo deja pendiente hasta el módulo de despliegue.
-- No pude probar nada de esto contra la Culqi real: no tengo tus llaves de prueba
-  (`application-local.properties`) ni puedo recibir un webhook desde aquí. Si lo escribí fue siguiendo al
-  pie de la letra la documentación oficial (`apidocs.culqi.com`, el spec `apiculqi.yaml`), pero igual
-  pruébalo primero en tu entorno de integración antes de pasarlo a producción.
-- Ojo: la documentación de Culqi se contradice sobre si el HTTP 200 o el 201 de un cargo significa
-  "necesita 3DS" (dos páginas dicen cosas distintas). Usé lo que dice el spec formal (`apiculqi.yaml`):
-  **201 = éxito, 200 = necesita 3DS**, que es lo más consistente con el resto de la documentación.
+- El HTTP 200 vs 201 de un cargo está al revés en dos páginas de su documentación (se usó lo que dice el
+  spec formal: **201 = éxito, 200 = necesita 3DS**, confirmado con pruebas reales).
+- El objeto de la tarjeta viene en el campo `source`, no `token` como dice su guía de integración.
+- Crear un Cliente en Culqi exige dirección, ciudad, país y teléfono (no solo nombre y correo); se usan
+  los de Configuración > Datos del negocio, con un aviso si el restaurante no los completó.
+- **`GET /v2/events/{id}` (consultar un evento) no funciona en el entorno de prueba** ("No existe el
+  evento que intentas consultar"), así que no sirve como verificación. El webhook se rediseñó para no
+  depender de eso: el tipo de evento se toma del propio webhook, pero antes de registrar cualquier cobro
+  siempre se vuelve a consultar la **suscripción real** en la API (eso sí funciona) — sigue sin confiarse
+  en el cuerpo del webhook para nada que implique dinero.
+- El panel de Culqi, al crear un webhook de suscripciones, solo deja elegir las acciones "creation",
+  "update" o "cancel" (no existe "charge" como dice la documentación): un cobro mensual dispara
+  `subscription.update.succeeded`, no `subscription.charge.succeeded`. Se aceptan ambos nombres por si acaso.
+- El campo `data` del webhook no llega como objeto: llega como texto JSON anidado en
+  `data.message.object.subsId`, un formato que Culqi tampoco documenta.
+
+**Qué quedó confirmado de verdad, probando con tarjetas de prueba + ngrok:**
+
+- ✅ Pago manual con tarjeta + 3D Secure (código de verificación del banco) de principio a fin: pago
+  recibido, plan renovado.
+- ✅ Activar el cobro automático guardando una tarjeta (usa las tarjetas de "Compras exitosas" de Culqi,
+  por ejemplo `4111 1111 1111 1111`; **no** las de "Casos de autenticación 3DS": esas fuerzan un 3DS que
+  un cobro automático, al no tener a nadie delante de la pantalla, nunca puede completar, así que el cobro
+  queda rechazado).
+- ✅ El webhook llega al backend y, para `subscription.cancel.succeeded`, se procesa de punta a punta
+  (confirmado con logs reales: el aviso llega, se verifica la suscripción, se marca inactiva).
+- ⚠️ **No confirmado todavía:** el aviso de **cobro exitoso** (`subscription.update.succeeded`). Se
+  esperó más de 20 minutos después de un cobro real y exitoso, y el "Historial" de webhooks de Culqi
+  nunca mostró ese evento (solo mostraba las cancelaciones, que sí llegan casi al instante). El código
+  que lo procesaría es el mismo que ya se probó con la cancelación, así que debería funcionar igual, pero
+  falta la confirmación real — puede ser que el entorno de prueba de Culqi no mande ese aviso en
+  particular, o que tarde mucho más de lo esperado. Para retomarlo: repetir la prueba con ngrok (ver
+  "Cómo correrlo" abajo) y, si vuelve a no llegar nada, confirmarlo recién cuando haya producción.
+- **Cómo funciona el cobro automático (para que quede claro):** al activarlo, Culqi cobra **de
+  inmediato** (no espera a que venza tu plan actual) y repite ese cobro cada mes, en esa misma fecha —
+  es un ciclo propio de Culqi, aparte del vencimiento que maneja Yuzu. Cuando el webhook de un cobro
+  exitoso le llega al backend, Yuzu **suma un mes al vencimiento que ya tenías** (nunca se pierden los
+  días ya pagados).
+- **Pendiente de hacer a mano, tuyo, antes de producción:** en el CulqiPanel de producción (no solo el de
+  prueba), sección Eventos → Webhooks, crear los mismos 3 webhooks (`subscription.update.succeeded`,
+  `subscription.update.failed`, `subscription.cancel.succeeded`) apuntando a la URL pública real de tu
+  backend (no a ngrok, eso es solo para probar en tu PC).
 
 **Antes de este módulo (compilación y pruebas automáticas):**
 
@@ -84,9 +98,7 @@ poder leerla). Quedó:
     MySQL): las pruebas bajan una imagen `mysql:8.0` aparte y la usan solo para probar, sin tocar tu
     base de datos real.
 - Sigue pendiente: probar el ticket de venta en una impresora térmica real.
-- Siguiente paso: falta elegir el próximo módulo (ver "Pendientes propuestos" abajo). Antes de dar este
-  módulo de Culqi por cerrado del todo: probarlo con tarjetas de prueba en tu entorno de integración y
-  configurar el webhook en el CulqiPanel.
+- Siguiente paso: falta elegir el próximo módulo (ver "Pendientes propuestos" abajo).
 
 ## Cómo correrlo
 
@@ -124,8 +136,6 @@ poder leerla). Quedó:
 - Sé honesto con lo que no se pudo compilar o probar. Si no ejecutaste algo, dilo.
 - Antes de dar un módulo por terminado: `mvn clean compile` (y pruebas), `ng build` o `ng serve` sin errores.
 - El ticket de venta es **interno**: no es un comprobante electrónico de SUNAT.
-
-## Pendientes propuestos (el dueño decide el orden)
 
 ## Pendientes propuestos (el dueño decide el orden)
 
