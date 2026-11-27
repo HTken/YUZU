@@ -9,6 +9,9 @@ import {
   InformeVentas,
   InformesApi,
   anchoBarra,
+  csvInsumos,
+  csvVentas,
+  descargarCsv,
   dinero,
   ordenarProductos,
   porcentaje,
@@ -40,7 +43,7 @@ const LIMITE_PRODUCTOS = 10;
   selector: 'app-informes',
   imports: [RouterLink],
   templateUrl: './informes.html',
-  styleUrl: './informes.css',
+  styleUrls: ['./informes.css', './informes-csv.css'],
 })
 export class Informes implements OnInit {
   private readonly api = inject(InformesApi);
@@ -178,6 +181,20 @@ export class Informes implements OnInit {
   protected reintentar(): void {
     if (this.ultimoRango) {
       this.consultar(this.ultimoRango);
+    }
+  }
+
+  protected exportarVentas(): void {
+    const v = this.ventas();
+    if (v) {
+      descargarCsv(`ventas_${v.desde}_a_${v.hasta}.csv`, csvVentas(v));
+    }
+  }
+
+  protected exportarInsumos(): void {
+    const i = this.insumos();
+    if (i) {
+      descargarCsv(`insumos_${i.desde}_a_${i.hasta}.csv`, csvInsumos(i));
     }
   }
 

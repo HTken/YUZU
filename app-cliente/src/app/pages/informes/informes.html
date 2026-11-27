@@ -69,6 +69,9 @@
   @if (ventas(); as v) {
     <section aria-labelledby="t-resumen">
       <h2 id="t-resumen" class="oculto">Resumen de ventas</h2>
+      <div class="exportar">
+        <button type="button" class="secundario chico" (click)="exportarVentas()">Exportar CSV</button>
+      </div>
       <div class="tiles">
         <div class="tile principal">
           <p class="etiqueta">Total vendido</p>
@@ -242,7 +245,10 @@
 <div class="informe" [class.atenuado]="actualizandoInsumos()" [attr.aria-busy]="cargandoInsumos()">
   @if (insumos(); as i) {
     <section class="bloque" aria-labelledby="t-insumos">
-      <h2 id="t-insumos">Insumos</h2>
+      <div class="titulo-bloque">
+        <h2 id="t-insumos">Insumos</h2>
+        <button type="button" class="secundario chico" (click)="exportarInsumos()">Exportar CSV</button>
+      </div>
 
       <div class="tiles dos">
         <div class="tile">

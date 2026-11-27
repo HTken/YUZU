@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
+import { etiquetaMetodo } from './caja.api';
 import { API_URL } from './config';
 
 /** Lo vendido en un día de Lima. La fecha va como AAAA-MM-DD. */
@@ -97,6 +98,77 @@ export function porcentaje(parte: number, total: number): string {
   }
   const valor = (parte / total) * 100;
   return valor < 1 ? 'menos de 1 %' : `${Math.round(valor)} %`;
+}
+
+// ------------------------------------------------------------------ exportar a CSV
+
+/** Una celda de CSV: si tiene coma, comillas o salto de línea, va entre comillas (duplicando las que trae). */
+function celdaCsv(valor: string | number): string {
+  const texto = String(valor);
+  return /[",\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+}
+
+function filaCsv(valores: (string | number)[]): string {
+  return valores.map(celdaCsv).join(',') + '\r\n';
+}
+
+/** Ventas por día, métodos de pago y productos del periodo, en un solo archivo por bloques. */
+export function csvVentas(informe: InformeVentas): string {
+  let csv = filaCsv(['Informe de ventas', `${informe.desde} a ${informe.hasta}`]);
+  csv += filaCsv(['Ventas (cuentas cobradas)', informe.ventas]);
+  csv += filaCsv(['Total vendido', informe.total.toFixed(2)]);
+  csv += filaCsv(['Venta promedio por cuenta', informe.ticketPromedio.toFixed(2)]);
+  csv += filaCsv(['Cuentas anuladas sin cobrarse', informe.cuentasAnuladas]);
+  csv += filaCsv(['Ventas cobradas y luego anuladas', informe.ventasAnuladas]);
+
+  csv += filaCsv([]);
+  csv += filaCsv(['Ventas por día']);
+  csv += filaCsv(['Día', 'Ventas', 'Total']);
+  for (const d of informe.porDia) {
+    csv += filaCsv([d.fecha, d.ventas, d.total.toFixed(2)]);
+  }
+
+  csv += filaCsv([]);
+  csv += filaCsv(['Cómo pagaron']);
+  csv += filaCsv(['Método', 'Cuentas', 'Total']);
+  for (const m of informe.porMetodo) {
+    csv += filaCsv([etiquetaMetodo(m.metodo), m.cuentas, m.total.toFixed(2)]);
+  }
+
+  csv += filaCsv([]);
+  csv += filaCsv(['Productos vendidos']);
+  csv += filaCsv(['Producto', 'Categoría', 'Unidades', 'Importe']);
+  for (const p of ordenarProductos(informe.productos, 'CANTIDAD')) {
+    csv += filaCsv([p.nombre, p.categoria, p.cantidad, p.importe.toFixed(2)]);
+  }
+
+  return csv;
+}
+
+export function csvInsumos(informe: InformeInsumos): string {
+  let csv = filaCsv(['Informe de insumos', `${informe.desde} a ${informe.hasta}`]);
+  csv += filaCsv(['Compras de insumos', informe.compras.toFixed(2)]);
+  csv += filaCsv(['Insumos con faltante', informe.insumosConFaltante]);
+
+  csv += filaCsv([]);
+  csv += filaCsv(['Insumo', 'Unidad', 'Consumo por ventas', 'Mermas', 'Entradas', 'Compras', 'Faltante']);
+  for (const i of informe.insumos) {
+    csv += filaCsv([i.nombre, i.unidad, i.consumo, i.merma, i.entradas, i.compras.toFixed(2), i.faltante]);
+  }
+
+  return csv;
+}
+
+/** Descarga un archivo de texto en el navegador. El BOM al inicio es para que Excel detecte bien los
+ *  acentos y la "ñ" al abrirlo (sin él, los muestra mal mientras no se le indique UTF-8 a mano). */
+export function descargarCsv(nombreArchivo: string, contenido: string): void {
+  const blob = new Blob(['﻿' + contenido], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = nombreArchivo;
+  enlace.click();
+  URL.revokeObjectURL(url);
 }
 
 @Injectable({ providedIn: 'root' })

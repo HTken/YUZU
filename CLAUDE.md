@@ -14,18 +14,44 @@ respuestas van **en español**.
 
 Módulos hechos: planes y vencimientos, Culqi (cobro manual, 3D Secure y cobro automático por suscripción),
 avisos de vencimiento por correo, cookie httpOnly para la sesión (en vez de guardar el token en el
-navegador), límite de intentos de login y 2FA opcional (ADMIN y SUPERADMIN), usuarios, productos, mesas,
-pedidos, caja, cocina, inventario, recetas, informes, anulación de ventas cobradas, ticket de venta y datos
-del negocio.
-Migraciones Flyway: `V2` a `V17` (la última es `V17__seguridad_login.sql`).
+navegador), límite de intentos de login y 2FA opcional (ADMIN y SUPERADMIN), exportar informes a CSV,
+usuarios, productos, mesas, pedidos, caja, cocina, inventario, recetas, informes, anulación de ventas
+cobradas, ticket de venta y datos del negocio.
+Migraciones Flyway: `V2` a `V17` (la última es `V17__seguridad_login.sql`; este módulo no necesitó una
+nueva).
 
 ## Estado actual
 
-Última sesión (27 nov 2026): límite de intentos de login y 2FA (ver justo abajo). Antes de esto, en la
-misma fecha: cookie httpOnly para la sesión, avisos de vencimiento por correo, y antes de eso: cobro
+Última sesión (27 nov 2026): exportar informes a CSV (ver justo abajo). Antes de esto, en la misma fecha:
+límite de intentos de login y 2FA, cookie httpOnly para la sesión, avisos de vencimiento por correo, y
+antes de eso: cobro
 recurrente + webhook + 3D Secure de Culqi, **probado de verdad** con tarjetas de prueba y un túnel ngrok
 hacia tu backend local (antes de esto se verificó que todo compilaba y se agregaron las primeras pruebas
 automáticas reales, ver más abajo).
+
+**Exportar informes a CSV**
+
+En **Informes** (app-cliente), ahora hay un botón **"Exportar CSV"** junto al resumen de ventas y otro
+junto a Insumos. Todo se arma en el navegador, a partir de los datos que ya están en pantalla — no se tocó
+el backend para nada de esto (ni un endpoint, ni un DTO nuevo):
+
+- **"Exportar CSV" de ventas**: un solo archivo con el resumen, las ventas por día, cómo pagaron y los
+  productos vendidos (todos los productos del periodo, no solo los primeros 10 que se ven en pantalla).
+- **"Exportar CSV" de insumos**: consumo, mermas, entradas, compras y faltante de cada insumo del periodo.
+
+Las funciones que arman el CSV (`csvVentas`, `csvInsumos`, `descargarCsv`) quedaron en
+`core/informes.api.ts`, junto a los otros helpers puros que ya vivían ahí (`dinero`, `anchoBarra`,
+`ordenarProductos`...). El archivo lleva un BOM al inicio para que Excel detecte bien los acentos y la "ñ"
+al abrirlo.
+
+**Probado de verdad en un navegador, no solo compilado:** se armó un backend y una base de datos de
+prueba aparte (temporales, nada de esto se subió ni toca tu base real), se inició sesión como el
+administrador demo, se creó un producto y una mesa, se cobró una venta real, y se descargaron los dos
+archivos CSV desde Informes — se confirmó que ambos traen los datos correctos y con el formato esperado.
+
+Archivos nuevos o modificados — `app-cliente/`: nuevo `pages/informes/informes-csv.css`; modificados
+`core/informes.api.ts`, `pages/informes/informes.ts`, `pages/informes/informes.html`. `backend/` y
+`app-plataforma/`: sin cambios (se confirmó que ambos siguen compilando igual).
 
 **Límite de intentos de login y 2FA**
 
@@ -300,7 +326,7 @@ documentación de Culqi no dice bien, y se fueron arreglando una por una:
 
 ## Pendientes propuestos (el dueño decide el orden)
 
-Facturación electrónica SUNAT, despliegue, exportar informes a CSV.
+Facturación electrónica SUNAT, despliegue.
 
 ## Sincronización entre módulos (backend + frontends)
 
