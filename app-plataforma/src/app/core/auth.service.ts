@@ -11,8 +11,6 @@ export interface LoginRequest {
 }
 
 interface LoginRespuesta {
-  token: string;
-  tipo: string;
   expiraEnSegundos: number;
   usuario: string;
   nombre: string;
@@ -43,13 +41,23 @@ export class AuthService {
   }
 
   login(datos: LoginRequest): Observable<Sesion> {
-    return this.http.post<LoginRespuesta>(`${API_URL}/api/plataforma/auth/login`, datos).pipe(
-      map((r): Sesion => ({ ...r, expiraEn: Date.now() + r.expiraEnSegundos * 1000 })),
-      tap((s) => this.guardar(s)),
-    );
+    return this.http
+      .post<LoginRespuesta>(`${API_URL}/api/plataforma/auth/login`, datos, { withCredentials: true })
+      .pipe(
+        map((r): Sesion => ({ ...r, expiraEn: Date.now() + r.expiraEnSegundos * 1000 })),
+        tap((s) => this.guardar(s)),
+      );
   }
 
   logout(): void {
+    // El token vive en una cookie httpOnly: solo el backend puede borrarla.
+    this.http.post(`${API_URL}/api/plataforma/auth/logout`, {}, { withCredentials: true }).subscribe({
+      complete: () => this.cerrarSesionLocal(),
+      error: () => this.cerrarSesionLocal(),
+    });
+  }
+
+  private cerrarSesionLocal(): void {
     this.limpiar();
     void this.router.navigateByUrl('/login');
   }

@@ -13,17 +13,66 @@ respuestas van **en español**.
 | `app-plataforma/` | Angular: consola de YUZU para administrar restaurantes, planes y cobranzas (rol `SUPERADMIN`) | 4300 |
 
 Módulos hechos: planes y vencimientos, Culqi (cobro manual, 3D Secure y cobro automático por suscripción),
-avisos de vencimiento por correo, usuarios, productos, mesas, pedidos, caja, cocina, inventario, recetas,
-informes, anulación de ventas cobradas, ticket de venta y datos del negocio.
+avisos de vencimiento por correo, cookie httpOnly para la sesión (en vez de guardar el token en el
+navegador), usuarios, productos, mesas, pedidos, caja, cocina, inventario, recetas, informes, anulación de
+ventas cobradas, ticket de venta y datos del negocio.
 Migraciones Flyway: `V2` a `V16` (la última es `V16__culqi_suscripciones.sql`; este módulo no necesitó una
 nueva porque no agrega tablas ni columnas).
 
 ## Estado actual
 
-Última sesión (27 nov 2026): avisos de vencimiento por correo (ver justo abajo). Antes de esto, en la misma
-fecha: cobro recurrente + webhook + 3D Secure de Culqi, **probado de verdad** con tarjetas de prueba y un
-túnel ngrok hacia tu backend local (antes de esto se verificó que todo compilaba y se agregaron las primeras
-pruebas automáticas reales, ver más abajo).
+Última sesión (27 nov 2026): cookie httpOnly para la sesión (ver justo abajo). Antes de esto, en la misma
+fecha: avisos de vencimiento por correo, y antes de eso: cobro recurrente + webhook + 3D Secure de Culqi,
+**probado de verdad** con tarjetas de prueba y un túnel ngrok hacia tu backend local (antes de esto se
+verificó que todo compilaba y se agregaron las primeras pruebas automáticas reales, ver más abajo).
+
+**Cookie httpOnly para la sesión**
+
+Antes, el token (JWT) quedaba guardado en `localStorage` del navegador — accesible desde JavaScript, así
+que un ataque de XSS (inyectar JS en la página) podría robarlo. Ahora el token viaja en una **cookie
+httpOnly**: el navegador la manda sola en cada pedido, pero ningún script (ni siquiera el de Yuzu) puede
+leerla. `localStorage` solo guarda datos sin importancia para mostrar en pantalla (nombre, rol, restaurante),
+nunca el token.
+
+Cómo quedó, por partes:
+
+- **Backend**: `AuthController` y `PlataformaAuthController` ya no devuelven el token en el cuerpo de la
+  respuesta del login (ahora devuelven `SesionDto`/`PlataformaSesionDto`, sin token); lo ponen en una
+  cookie httpOnly (`CookieAuth`, una por tipo de sesión: `yuzu_token` para restaurantes,
+  `yuzu_plataforma_token` para la consola de plataforma, para que no se mezclen si tienes las dos pestañas
+  abiertas). Se agregó `POST /api/auth/logout` y `POST /api/plataforma/auth/logout`, que es lo único que
+  puede borrar esa cookie (JavaScript no puede). `SecurityConfig` ahora lee el token de la cookie primero
+  (`CookieBearerTokenResolver`); si no hay cookie, sigue aceptando el encabezado `Authorization` de siempre
+  (lo siguen usando las pruebas automatizadas y cualquier llamada directa a la API).
+- **Un hallazgo importante, probado con un navegador de verdad (no supuesto)**: app-cliente usa subdominios
+  por restaurante (`demo.localhost:4200`), y Chrome trata eso como un **sitio distinto** de donde corre el
+  backend (`localhost:8080`). Con `SameSite=Lax` (lo normal) la cookie **no viajaba** entre ellos — se
+  probó armando un servidor mínimo y confirmando con Playwright que la cookie no llegaba. La solución fue
+  `SameSite=None; Secure`, que si funciona entre sitios distintos (confirmado con la misma prueba) y
+  también funciona sobre `http://` en localhost porque Chrome lo trata como seguro. **Importante para
+  cuando despliegues** (módulo pendiente "Preparar el despliegue"): `Secure` exige HTTPS de verdad fuera de
+  localhost — si backend y frontends no quedan ambos por HTTPS, el navegador no va a guardar la cookie y
+  nadie va a poder iniciar sesión.
+- **Frontend (los 2 apps)**: `AuthService` ya no guarda el token, solo datos para mostrar (nombre, rol,
+  restaurante, cuándo vence según el propio navegador). Todas las peticiones al backend ahora van con
+  `withCredentials: true` (así el navegador manda la cookie). `logout()` ahora llama al backend para que
+  borre la cookie, y recién después limpia lo local y vuelve al login.
+- Se aprovechó para borrar el campo `tipo` ("Bearer") de `LoginResponse`/`PlataformaLoginResponse`: ya no
+  lo usaba nadie (el "Bearer" que importa ahora es interno, del lado del servidor).
+
+**Verificado de verdad:** `mvn clean test` (97 pruebas, todas en verde — incluida
+`AislamientoEntreRestaurantesTest`, que confirma que el encabezado `Authorization` sigue funcionando para
+pruebas), `ng build` de los 2 frontends sin errores. **No se alcanzó a probar en el navegador real del
+dueño** (solo en el sandbox con Playwright, para el hallazgo de `SameSite`): falta que confirmes en tu PC
+que el login, el logout y el cambio de pestaña entre `localhost:4200` o `demo.localhost:4200` y
+`localhost:4300` siguen funcionando igual que antes.
+
+Archivos nuevos o modificados — `backend/`: nuevos `config/CookieAuth.java` y
+`config/CookieBearerTokenResolver.java`, `auth/SesionDto.java` y
+`plataforma/PlataformaSesionDto.java`; modificados `config/SecurityConfig.java`, `auth/AuthController.java`,
+`auth/AuthService.java`, `auth/LoginResponse.java`, `plataforma/PlataformaAuthController.java`,
+`plataforma/PlataformaAuthService.java`, `plataforma/PlataformaLoginResponse.java`. `app-cliente/` y
+`app-plataforma/`: `core/auth.service.ts` y `core/auth.interceptor.ts` en ambos.
 
 **Avisos de vencimiento por correo**
 
@@ -187,8 +236,7 @@ documentación de Culqi no dice bien, y se fueron arreglando una por una:
 
 ## Pendientes propuestos (el dueño decide el orden)
 
-Facturación electrónica SUNAT, despliegue, límite de intentos de login y 2FA, cookie httpOnly en lugar de
-guardar el token en el navegador, exportar informes a CSV.
+Facturación electrónica SUNAT, despliegue, límite de intentos de login y 2FA, exportar informes a CSV.
 
 ## Sincronización entre módulos (backend + frontends)
 

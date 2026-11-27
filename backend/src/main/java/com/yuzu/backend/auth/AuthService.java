@@ -67,7 +67,7 @@ public class AuthService {
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
 
-        return new LoginResponse(token, "Bearer", minutos * 60,
+        return new LoginResponse(token, minutos * 60,
                 usuario.getUsuario(), usuario.getNombre(), usuario.getRol(), restaurante.getNombre());
     }
 

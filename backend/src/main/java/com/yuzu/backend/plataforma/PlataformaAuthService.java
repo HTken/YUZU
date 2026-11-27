@@ -53,6 +53,6 @@ public class PlataformaAuthService {
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
 
-        return new PlataformaLoginResponse(token, "Bearer", minutos * 60, admin.getUsuario(), admin.getNombre());
+        return new PlataformaLoginResponse(token, minutos * 60, admin.getUsuario(), admin.getNombre());
     }
 }

@@ -47,7 +47,8 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login", "/api/plataforma/auth/login", "/error").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/logout",
+                        "/api/plataforma/auth/login", "/api/plataforma/auth/logout", "/error").permitAll()
                 // Lo que llama Culqi, no el navegador: no manda ningún token (ver CulqiWebhookController).
                 .requestMatchers("/api/pagos/culqi/webhook").permitAll()
                 .requestMatchers("/api/plataforma/**").hasRole("SUPERADMIN")
@@ -84,6 +85,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/negocio/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth -> oauth
+                .bearerTokenResolver(new CookieBearerTokenResolver())
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(convertidorJwt())));
         return http.build();
     }
@@ -121,6 +123,8 @@ public class SecurityConfig {
                 "http://localhost:4200", "http://*.localhost:4200", "http://localhost:4300"));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
+        // Para que el navegador mande y guarde la cookie httpOnly de la sesión entre orígenes distintos.
+        cfg.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
