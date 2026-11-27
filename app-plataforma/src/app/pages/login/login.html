@@ -32,54 +32,80 @@
 
   <section class="panel">
     <form class="formulario" [formGroup]="form" (ngSubmit)="ingresar()" novalidate>
-      <h2>Iniciar sesión</h2>
-      <p class="sub">Acceso solo para el equipo de Yuzu.</p>
+      @if (paso2fa()) {
+        <h2>Verificación en dos pasos</h2>
+        <p class="sub">Escribe el código de 6 dígitos de tu app autenticadora.</p>
 
-      <div class="campo">
-        <label for="usuario">Usuario</label>
-        <input
-          id="usuario"
-          type="text"
-          formControlName="usuario"
-          autocomplete="username"
-          autocapitalize="none"
-          spellcheck="false"
-        />
-        @if (form.controls.usuario.touched && form.controls.usuario.invalid) {
-          <small class="aviso">Escribe tu usuario</small>
-        }
-      </div>
-
-      <div class="campo">
-        <label for="clave">Contraseña</label>
-        <div class="clave">
+        <div class="campo">
+          <label for="codigoTotp">Código</label>
           <input
-            id="clave"
-            [type]="verClave() ? 'text' : 'password'"
-            formControlName="clave"
-            autocomplete="current-password"
+            id="codigoTotp"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            formControlName="codigoTotp"
           />
-          <button
-            type="button"
-            class="ojo"
-            (click)="verClave.set(!verClave())"
-            [attr.aria-label]="verClave() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-          >
-            {{ verClave() ? 'Ocultar' : 'Mostrar' }}
-          </button>
         </div>
-        @if (form.controls.clave.touched && form.controls.clave.invalid) {
-          <small class="aviso">Escribe tu contraseña</small>
+
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
         }
-      </div>
 
-      @if (error()) {
-        <p class="error" role="alert">{{ error() }}</p>
+        <button class="entrar" type="submit" [disabled]="cargando()">
+          {{ cargando() ? 'Verificando…' : 'Verificar' }}
+        </button>
+        <button type="button" class="volver" (click)="volverAEmpezar()">Volver</button>
+      } @else {
+        <h2>Iniciar sesión</h2>
+        <p class="sub">Acceso solo para el equipo de Yuzu.</p>
+
+        <div class="campo">
+          <label for="usuario">Usuario</label>
+          <input
+            id="usuario"
+            type="text"
+            formControlName="usuario"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+          @if (form.controls.usuario.touched && form.controls.usuario.invalid) {
+            <small class="aviso">Escribe tu usuario</small>
+          }
+        </div>
+
+        <div class="campo">
+          <label for="clave">Contraseña</label>
+          <div class="clave">
+            <input
+              id="clave"
+              [type]="verClave() ? 'text' : 'password'"
+              formControlName="clave"
+              autocomplete="current-password"
+            />
+            <button
+              type="button"
+              class="ojo"
+              (click)="verClave.set(!verClave())"
+              [attr.aria-label]="verClave() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              {{ verClave() ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+          @if (form.controls.clave.touched && form.controls.clave.invalid) {
+            <small class="aviso">Escribe tu contraseña</small>
+          }
+        </div>
+
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
+        }
+
+        <button class="entrar" type="submit" [disabled]="cargando()">
+          {{ cargando() ? 'Entrando…' : 'Entrar' }}
+        </button>
       }
-
-      <button class="entrar" type="submit" [disabled]="cargando()">
-        {{ cargando() ? 'Entrando…' : 'Entrar' }}
-      </button>
     </form>
   </section>
 </main>

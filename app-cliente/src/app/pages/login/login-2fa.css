@@ -1,0 +1,19 @@
+.volver {
+  width: 100%;
+  height: 44px;
+  margin-top: 10px;
+  border: 0;
+  background: none;
+  color: var(--texto-suave);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.volver:hover {
+  text-decoration: underline;
+}
+
+.volver:focus-visible {
+  outline: 3px solid var(--yuzu);
+  outline-offset: -3px;
+}

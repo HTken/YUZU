@@ -5,6 +5,7 @@
   </div>
   <div class="usuario">
     <span>{{ auth.sesion()?.nombre }}</span>
+    <a routerLink="/cuenta">Mi cuenta</a>
     <button type="button" (click)="auth.logout()">Cerrar sesión</button>
   </div>
 </header>

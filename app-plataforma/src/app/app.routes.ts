@@ -18,6 +18,10 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/restaurantes/restaurantes').then((m) => m.Restaurantes),
       },
+      {
+        path: 'cuenta',
+        loadComponent: () => import('./pages/cuenta/cuenta').then((m) => m.Cuenta),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

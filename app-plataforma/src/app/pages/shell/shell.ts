@@ -1,13 +1,13 @@
 import { Component, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterLink, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet],
+  imports: [RouterLink, RouterOutlet],
   templateUrl: './shell.html',
-  styleUrl: './shell.css',
+  styleUrls: ['./shell.css', './shell-cuenta.css'],
 })
 export class Shell {
   protected readonly auth = inject(AuthService);

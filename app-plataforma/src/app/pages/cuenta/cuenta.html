@@ -1,0 +1,72 @@
+<header class="cabecera">
+  <a routerLink="/" class="volver">Restaurantes</a>
+  <h1>Mi cuenta</h1>
+  <p class="descripcion">Verificación en dos pasos con una app autenticadora (Google Authenticator, Authy, etc).</p>
+</header>
+
+@if (cargando()) {
+  <p class="aviso-estado">Cargando…</p>
+} @else {
+  @if (errorCarga()) {
+    <div class="aviso-estado con-error" role="alert">
+      <p>{{ errorCarga() }}</p>
+    </div>
+  }
+
+  <div class="tarjeta">
+    @if (activo()) {
+      <p class="estado activo">Verificación en dos pasos: <strong>activada</strong>.</p>
+      <p class="ayuda">
+        Cada vez que inicies sesión, además de tu usuario y clave, te pedirá el código de tu app
+        autenticadora.
+      </p>
+      <button type="button" class="secundario" [disabled]="desactivando()" (click)="desactivar()">
+        {{ desactivando() ? 'Desactivando…' : 'Desactivar' }}
+      </button>
+    } @else {
+      <p class="estado">Verificación en dos pasos: <strong>desactivada</strong>.</p>
+      <p class="ayuda">Es opcional. Súmale un paso más a tu inicio de sesión para que, aunque alguien
+        descubra tu clave, no pueda entrar sin tu celular.</p>
+      <button type="button" class="primario" [disabled]="generando()" (click)="activarDialogo()">
+        {{ generando() ? 'Generando…' : 'Activar verificación en dos pasos' }}
+      </button>
+    }
+  </div>
+}
+
+<dialog [open]="dialogoAbierto()" class="dialogo">
+  @if (setup()) {
+    <h2>Activar verificación en dos pasos</h2>
+    <ol class="pasos">
+      <li>Abre tu app autenticadora y agrega una cuenta nueva de forma manual (no por QR).</li>
+      <li>Como nombre de la cuenta pon <strong>Yuzu</strong>, y como clave secreta, esta:</li>
+    </ol>
+
+    <p class="secreto">{{ secretoFormateado() }}</p>
+
+    <form [formGroup]="formCodigo" (ngSubmit)="confirmar()" novalidate>
+      <div class="campo">
+        <label for="codigo2fa">Escribe el código de 6 dígitos que ya debería mostrar la app</label>
+        <input
+          id="codigo2fa"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          autocomplete="one-time-code"
+          formControlName="codigo"
+        />
+      </div>
+
+      @if (errorConfirmar()) {
+        <p class="error" role="alert">{{ errorConfirmar() }}</p>
+      }
+
+      <div class="acciones">
+        <button type="button" class="secundario" (click)="cerrarDialogo()">Cancelar</button>
+        <button type="submit" class="primario" [disabled]="confirmando() || formCodigo.invalid">
+          {{ confirmando() ? 'Confirmando…' : 'Confirmar y activar' }}
+        </button>
+      </div>
+    </form>
+  }
+</dialog>

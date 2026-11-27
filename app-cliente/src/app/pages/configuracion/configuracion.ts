@@ -42,6 +42,12 @@ import { AuthService } from '../../core/auth.service';
             <span class="detalle">RUC, dirección y mensaje que salen en el ticket, y el ancho del papel.</span>
           </a>
         </li>
+        <li>
+          <a routerLink="/configuracion/seguridad">
+            <span class="titulo">Seguridad</span>
+            <span class="detalle">Verificación en dos pasos con una app autenticadora.</span>
+          </a>
+        </li>
       }
     </ul>
   `,

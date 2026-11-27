@@ -32,76 +32,102 @@
 
   <section class="panel">
     <form class="formulario" [formGroup]="form" (ngSubmit)="ingresar()" novalidate>
-      <h2>Iniciar sesión</h2>
-      <p class="sub">Entra con tu usuario del restaurante.</p>
+      @if (paso2fa()) {
+        <h2>Verificación en dos pasos</h2>
+        <p class="sub">Escribe el código de 6 dígitos de tu app autenticadora.</p>
 
-      @if (subdominioFijo) {
-        <p class="restaurante">
-          Restaurante: <strong>{{ subdominioFijo }}</strong>
-        </p>
-      } @else {
         <div class="campo">
-          <label for="subdominio">Restaurante</label>
+          <label for="codigoTotp">Código</label>
           <input
-            id="subdominio"
+            id="codigoTotp"
             type="text"
-            formControlName="subdominio"
-            placeholder="nombre-de-tu-restaurante"
-            autocomplete="off"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            formControlName="codigoTotp"
+          />
+        </div>
+
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
+        }
+
+        <button class="entrar" type="submit" [disabled]="cargando()">
+          {{ cargando() ? 'Verificando…' : 'Verificar' }}
+        </button>
+        <button type="button" class="volver" (click)="volverAEmpezar()">Volver</button>
+      } @else {
+        <h2>Iniciar sesión</h2>
+        <p class="sub">Entra con tu usuario del restaurante.</p>
+
+        @if (subdominioFijo) {
+          <p class="restaurante">
+            Restaurante: <strong>{{ subdominioFijo }}</strong>
+          </p>
+        } @else {
+          <div class="campo">
+            <label for="subdominio">Restaurante</label>
+            <input
+              id="subdominio"
+              type="text"
+              formControlName="subdominio"
+              placeholder="nombre-de-tu-restaurante"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+            @if (form.controls.subdominio.touched && form.controls.subdominio.invalid) {
+              <small class="aviso">Escribe el nombre de tu restaurante</small>
+            }
+          </div>
+        }
+
+        <div class="campo">
+          <label for="usuario">Usuario</label>
+          <input
+            id="usuario"
+            type="text"
+            formControlName="usuario"
+            autocomplete="username"
             autocapitalize="none"
             spellcheck="false"
           />
-          @if (form.controls.subdominio.touched && form.controls.subdominio.invalid) {
-            <small class="aviso">Escribe el nombre de tu restaurante</small>
+          @if (form.controls.usuario.touched && form.controls.usuario.invalid) {
+            <small class="aviso">Escribe tu usuario</small>
           }
         </div>
-      }
 
-      <div class="campo">
-        <label for="usuario">Usuario</label>
-        <input
-          id="usuario"
-          type="text"
-          formControlName="usuario"
-          autocomplete="username"
-          autocapitalize="none"
-          spellcheck="false"
-        />
-        @if (form.controls.usuario.touched && form.controls.usuario.invalid) {
-          <small class="aviso">Escribe tu usuario</small>
-        }
-      </div>
-
-      <div class="campo">
-        <label for="clave">Contraseña</label>
-        <div class="clave">
-          <input
-            id="clave"
-            [type]="verClave() ? 'text' : 'password'"
-            formControlName="clave"
-            autocomplete="current-password"
-          />
-          <button
-            type="button"
-            class="ojo"
-            (click)="verClave.set(!verClave())"
-            [attr.aria-label]="verClave() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-          >
-            {{ verClave() ? 'Ocultar' : 'Mostrar' }}
-          </button>
+        <div class="campo">
+          <label for="clave">Contraseña</label>
+          <div class="clave">
+            <input
+              id="clave"
+              [type]="verClave() ? 'text' : 'password'"
+              formControlName="clave"
+              autocomplete="current-password"
+            />
+            <button
+              type="button"
+              class="ojo"
+              (click)="verClave.set(!verClave())"
+              [attr.aria-label]="verClave() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              {{ verClave() ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+          @if (form.controls.clave.touched && form.controls.clave.invalid) {
+            <small class="aviso">Escribe tu contraseña</small>
+          }
         </div>
-        @if (form.controls.clave.touched && form.controls.clave.invalid) {
-          <small class="aviso">Escribe tu contraseña</small>
+
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
         }
-      </div>
 
-      @if (error()) {
-        <p class="error" role="alert">{{ error() }}</p>
+        <button class="entrar" type="submit" [disabled]="cargando()">
+          {{ cargando() ? 'Entrando…' : 'Entrar' }}
+        </button>
       }
-
-      <button class="entrar" type="submit" [disabled]="cargando()">
-        {{ cargando() ? 'Entrando…' : 'Entrar' }}
-      </button>
     </form>
   </section>
 </main>

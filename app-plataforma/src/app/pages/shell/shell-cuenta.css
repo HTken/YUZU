@@ -1,0 +1,13 @@
+.usuario a {
+  color: #cfe3d3;
+  text-decoration: none;
+}
+
+.usuario a:hover {
+  text-decoration: underline;
+}
+
+.usuario a:focus-visible {
+  outline: 3px solid var(--yuzu);
+  outline-offset: 2px;
+}

@@ -29,11 +29,16 @@ public class AuthController {
     }
 
     @PostMapping("/auth/login")
-    public SesionDto login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
-        LoginResponse r = authService.login(request);
+    public LoginRespuestaDto login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+        LoginResultado resultado = authService.login(request);
+        if (resultado.requiere2fa()) {
+            return LoginRespuestaDto.requiere2FA();
+        }
+
+        LoginResponse r = resultado.sesion();
         response.addHeader(HttpHeaders.SET_COOKIE,
                 cookieAuth.sesion(CookieAuth.COOKIE_RESTAURANTE, r.token(), r.expiraEnSegundos()).toString());
-        return new SesionDto(r.expiraEnSegundos(), r.usuario(), r.nombre(), r.rol(), r.restaurante());
+        return LoginRespuestaDto.de(new SesionDto(r.expiraEnSegundos(), r.usuario(), r.nombre(), r.rol(), r.restaurante()));
     }
 
     @PostMapping("/auth/logout")

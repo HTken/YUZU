@@ -8,15 +8,22 @@ import { API_URL } from './config';
 export interface LoginRequest {
   usuario: string;
   clave: string;
+  /** Código de la app autenticadora. Solo hace falta si el servidor respondió requiere2fa=true. */
+  codigoTotp?: string;
 }
 
-interface LoginRespuesta {
+interface SesionApi {
   expiraEnSegundos: number;
   usuario: string;
   nombre: string;
 }
 
-export interface Sesion extends LoginRespuesta {
+interface LoginRespuestaApi {
+  requiere2fa: boolean;
+  sesion: SesionApi | null;
+}
+
+export interface Sesion extends SesionApi {
   /** Momento en que vence el token, en milisegundos desde 1970. */
   expiraEn: number;
 }
@@ -40,12 +47,18 @@ export class AuthService {
     return actual !== null;
   }
 
-  login(datos: LoginRequest): Observable<Sesion> {
+  /** Si requiere2fa viene en true, no se guarda ninguna sesión todavía: hay que reenviar el mismo login
+   *  con el código de la app autenticadora en codigoTotp. */
+  login(datos: LoginRequest): Observable<{ requiere2fa: boolean }> {
     return this.http
-      .post<LoginRespuesta>(`${API_URL}/api/plataforma/auth/login`, datos, { withCredentials: true })
+      .post<LoginRespuestaApi>(`${API_URL}/api/plataforma/auth/login`, datos, { withCredentials: true })
       .pipe(
-        map((r): Sesion => ({ ...r, expiraEn: Date.now() + r.expiraEnSegundos * 1000 })),
-        tap((s) => this.guardar(s)),
+        tap((r) => {
+          if (!r.requiere2fa && r.sesion) {
+            this.guardar({ ...r.sesion, expiraEn: Date.now() + r.sesion.expiraEnSegundos * 1000 });
+          }
+        }),
+        map((r) => ({ requiere2fa: r.requiere2fa })),
       );
   }
 

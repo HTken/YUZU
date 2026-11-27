@@ -92,6 +92,12 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./pages/configuracion/negocio/negocio').then((m) => m.DatosNegocio),
           },
+          {
+            path: 'seguridad',
+            canActivate: [soloRoles('ADMIN')],
+            loadComponent: () =>
+              import('./pages/configuracion/seguridad/seguridad').then((m) => m.Seguridad),
+          },
         ],
       },
     ],

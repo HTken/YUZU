@@ -42,6 +42,16 @@ public class Usuario {
     @Column(nullable = false)
     private boolean activo = true;
 
+    @Column(name = "intentos_fallidos", nullable = false)
+    private int intentosFallidos = 0;
+
+    @Column(name = "bloqueado_hasta")
+    private LocalDateTime bloqueadoHasta;
+
+    /** Secreto en Base32 de la app autenticadora (TOTP). Null = el usuario no activó el 2FA. */
+    @Column(name = "totp_secret", length = 64)
+    private String totpSecret;
+
     @Column(name = "creado_en", insertable = false, updatable = false)
     private LocalDateTime creadoEn;
 }

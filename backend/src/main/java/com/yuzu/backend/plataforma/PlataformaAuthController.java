@@ -24,11 +24,17 @@ public class PlataformaAuthController {
     }
 
     @PostMapping("/login")
-    public PlataformaSesionDto login(@Valid @RequestBody PlataformaLoginRequest request, HttpServletResponse response) {
-        PlataformaLoginResponse r = servicio.login(request);
+    public PlataformaLoginRespuestaDto login(@Valid @RequestBody PlataformaLoginRequest request,
+                                              HttpServletResponse response) {
+        PlataformaLoginResultado resultado = servicio.login(request);
+        if (resultado.requiere2fa()) {
+            return PlataformaLoginRespuestaDto.requiere2FA();
+        }
+
+        PlataformaLoginResponse r = resultado.sesion();
         response.addHeader(HttpHeaders.SET_COOKIE,
                 cookieAuth.sesion(CookieAuth.COOKIE_PLATAFORMA, r.token(), r.expiraEnSegundos()).toString());
-        return new PlataformaSesionDto(r.expiraEnSegundos(), r.usuario(), r.nombre());
+        return PlataformaLoginRespuestaDto.de(new PlataformaSesionDto(r.expiraEnSegundos(), r.usuario(), r.nombre()));
     }
 
     @PostMapping("/logout")

@@ -14,17 +14,81 @@ respuestas van **en español**.
 
 Módulos hechos: planes y vencimientos, Culqi (cobro manual, 3D Secure y cobro automático por suscripción),
 avisos de vencimiento por correo, cookie httpOnly para la sesión (en vez de guardar el token en el
-navegador), usuarios, productos, mesas, pedidos, caja, cocina, inventario, recetas, informes, anulación de
-ventas cobradas, ticket de venta y datos del negocio.
-Migraciones Flyway: `V2` a `V16` (la última es `V16__culqi_suscripciones.sql`; este módulo no necesitó una
-nueva porque no agrega tablas ni columnas).
+navegador), límite de intentos de login y 2FA opcional (ADMIN y SUPERADMIN), usuarios, productos, mesas,
+pedidos, caja, cocina, inventario, recetas, informes, anulación de ventas cobradas, ticket de venta y datos
+del negocio.
+Migraciones Flyway: `V2` a `V17` (la última es `V17__seguridad_login.sql`).
 
 ## Estado actual
 
-Última sesión (27 nov 2026): cookie httpOnly para la sesión (ver justo abajo). Antes de esto, en la misma
-fecha: avisos de vencimiento por correo, y antes de eso: cobro recurrente + webhook + 3D Secure de Culqi,
-**probado de verdad** con tarjetas de prueba y un túnel ngrok hacia tu backend local (antes de esto se
-verificó que todo compilaba y se agregaron las primeras pruebas automáticas reales, ver más abajo).
+Última sesión (27 nov 2026): límite de intentos de login y 2FA (ver justo abajo). Antes de esto, en la
+misma fecha: cookie httpOnly para la sesión, avisos de vencimiento por correo, y antes de eso: cobro
+recurrente + webhook + 3D Secure de Culqi, **probado de verdad** con tarjetas de prueba y un túnel ngrok
+hacia tu backend local (antes de esto se verificó que todo compilaba y se agregaron las primeras pruebas
+automáticas reales, ver más abajo).
+
+**Límite de intentos de login y 2FA**
+
+Dos cosas separadas, pedidas juntas como un solo módulo:
+
+- **Límite de intentos:** aplica a **todos** los roles (restaurantes y la consola de plataforma). Tras
+  `yuzu.seguridad.max-intentos` intentos fallidos seguidos (5 por defecto, cuenta también un código de
+  2FA incorrecto) la cuenta queda bloqueada `yuzu.seguridad.minutos-bloqueo` minutos (15 por defecto); un
+  login correcto pone el contador en cero. El mensaje de error avisa cuántos minutos faltan.
+- **2FA (verificación en dos pasos) con app autenticadora (TOTP)**, las decisiones las tomó el dueño:
+  - Método: app autenticadora (Google Authenticator, Authy, etc.), no por correo — no depende de tener
+    SMTP configurado.
+  - Alcance: solo **ADMIN** (por restaurante) y **SUPERADMIN** (plataforma). Mozo, cajero y cocina
+    siguen entrando solo con usuario y clave, sin fricción extra en el celular del local.
+  - Obligatoriedad: **opcional** — cada quien lo activa para su propia cuenta en Configuración > Seguridad
+    (app-cliente) o Mi cuenta (app-plataforma). Nadie queda bloqueado de su cuenta sin querer.
+
+Cómo quedó, por partes:
+
+- **TOTP implementado a mano** (`auth/Totp.java`, sin librerías externas): HMAC-SHA1 + truncamiento
+  dinámico tal como dice el estándar (RFC 6238 / RFC 4226), Base32 para mostrar y guardar el secreto, y una
+  ventana de ±30 segundos para tolerar que el reloj del celular no esté exacto. Se probó contra los
+  **valores oficiales de ejemplo del estándar** (RFC 4226, anexo D) para confirmar que el cálculo es
+  exactamente el correcto, no solo "parece funcionar".
+- **Activar el 2FA es en dos pasos** para no arriesgarte a quedar bloqueado: `POST /iniciar` genera un
+  secreto nuevo (todavía no se guarda), lo muestra como texto para copiarlo a mano en la app (no hay
+  lector de código QR todavía, ver "Pendiente" abajo), y recién cuando escribes un código válido de esa
+  app (`POST /activar`) se guarda de verdad. `POST /desactivar` lo apaga sin pedir nada más (es tu propia
+  cuenta).
+- **El login ahora puede devolver dos respuestas** en `POST /api/auth/login` (y el de plataforma):
+  `{"requiere2fa": true}` sin cookie todavía, o `{"requiere2fa": false, "sesion": {...}}` con la cookie ya
+  puesta — el mismo request se vuelve a mandar con `codigoTotp` relleno para completar el segundo paso.
+  Nunca se usó un estado a medias en el servidor: cada intento vuelve a mandar usuario y clave completos.
+- `V17__seguridad_login.sql`: agrega `intentos_fallidos`, `bloqueado_hasta` y `totp_secret` (null = 2FA
+  desactivado) a `usuarios` y a `administradores_plataforma`.
+
+**Verificado de verdad:** `mvn clean test` (109 pruebas, todas en verde — 12 nuevas: 6 de
+`ReglasIntentosLoginTest` y 6 de `TotpTest`, estas últimas confirmadas contra los vectores oficiales del
+estándar), `ng build` de los 2 frontends sin errores. **No se probó con un celular real ni con una app
+autenticadora de verdad** (Google Authenticator, Authy...): la demostración de que el cálculo es correcto
+viene de los vectores oficiales del estándar, no de un dispositivo real, y tampoco se probó en vivo que el
+bloqueo por intentos fallidos realmente te deja afuera 15 minutos y después te deja entrar — eso sí hace
+falta que lo pruebes tú, como se hizo con Culqi.
+
+**Pendiente, si lo quieres más adelante:** mostrar un código QR para escanear en vez de copiar el secreto a
+mano (hoy funciona, pero es menos cómodo); se evitó a propósito para no agregar una librería nueva sin
+necesidad.
+
+Archivos nuevos o modificados — `backend/`: nueva migración `V17__seguridad_login.sql`; nuevos
+`auth/ReglasIntentosLogin.java`, `auth/Totp.java`, `auth/LoginResultado.java`, `auth/LoginRespuestaDto.java`,
+`auth/TotpEstadoDto.java`, `auth/TotpSetupDto.java`, `auth/TotpActivarRequest.java`,
+`usuario/DosFactoresService.java`, `usuario/DosFactoresController.java`,
+`plataforma/PlataformaLoginResultado.java`, `plataforma/PlataformaLoginRespuestaDto.java`,
+`plataforma/PlataformaDosFactoresService.java`, `plataforma/PlataformaDosFactoresController.java`;
+modificados `usuario/Usuario.java`, `plataforma/AdministradorPlataforma.java`, `auth/LoginRequest.java`,
+`auth/AuthService.java`, `auth/AuthController.java`, `plataforma/PlataformaLoginRequest.java`,
+`plataforma/PlataformaAuthService.java`, `plataforma/PlataformaAuthController.java`. `app-cliente/`: nuevos
+`core/dos-factores.api.ts`, `pages/configuracion/seguridad/*`, `pages/login/login-2fa.css`; modificados
+`core/auth.service.ts`, `pages/login/login.ts`, `pages/login/login.html`, `app.routes.ts`,
+`pages/configuracion/configuracion.ts`. `app-plataforma/`: nuevos `core/dos-factores.api.ts`,
+`pages/cuenta/*`, `pages/login/login-2fa.css`, `pages/shell/shell-cuenta.css`; modificados
+`core/auth.service.ts`, `pages/login/login.ts`, `pages/login/login.html`, `app.routes.ts`,
+`pages/shell/shell.ts`, `pages/shell/shell.html`.
 
 **Cookie httpOnly para la sesión**
 
@@ -210,7 +274,7 @@ documentación de Culqi no dice bien, y se fueron arreglando una por una:
 - El restaurante **siempre sale del token** (`SesionActual.restauranteId()`), jamás de lo que mande el cliente.
   Toda consulta filtra por restaurante; un dato de otro restaurante responde 404.
 - `spring.jpa.hibernate.ddl-auto=none`: cualquier cambio de base de datos va en una **migración Flyway nueva**
-  (`V16__...`). Nunca se edita una migración ya aplicada.
+  (`V18__...`). Nunca se edita una migración ya aplicada.
 - Errores como `{"mensaje": "..."}` con `ManejadorErrores`. Los mensajes van en español y dicen qué hacer.
 - Fechas: `LocalDateTime` en UTC con `Tiempo.ahora()` / `Tiempo.iso()`. Lima es UTC-5: el frontend convierte al mostrar.
 - Permisos en `config/SecurityConfig.java`: gana la **primera** regla que coincide, así que las reglas específicas
@@ -236,7 +300,7 @@ documentación de Culqi no dice bien, y se fueron arreglando una por una:
 
 ## Pendientes propuestos (el dueño decide el orden)
 
-Facturación electrónica SUNAT, despliegue, límite de intentos de login y 2FA, exportar informes a CSV.
+Facturación electrónica SUNAT, despliegue, exportar informes a CSV.
 
 ## Sincronización entre módulos (backend + frontends)
 
