@@ -64,11 +64,11 @@ Cómo quedó, por partes:
 
 **Verificado de verdad:** `mvn clean test` (109 pruebas, todas en verde — 12 nuevas: 6 de
 `ReglasIntentosLoginTest` y 6 de `TotpTest`, estas últimas confirmadas contra los vectores oficiales del
-estándar), `ng build` de los 2 frontends sin errores. **No se probó con un celular real ni con una app
-autenticadora de verdad** (Google Authenticator, Authy...): la demostración de que el cálculo es correcto
-viene de los vectores oficiales del estándar, no de un dispositivo real, y tampoco se probó en vivo que el
-bloqueo por intentos fallidos realmente te deja afuera 15 minutos y después te deja entrar — eso sí hace
-falta que lo pruebes tú, como se hizo con Culqi.
+estándar), `ng build` de los 2 frontends sin errores. **Y además, probado en la vida real por el dueño en
+su PC:** activó el 2FA con una app autenticadora de verdad (escribiendo el secreto a mano) y confirmó que
+el login lo pide y lo acepta; también probó fallar la clave varias veces seguidas y confirmó que la cuenta
+queda bloqueada con el aviso de minutos correspondiente. Las dos partes del módulo quedan confirmadas de
+punta a punta, no solo por pruebas automáticas.
 
 **Pendiente, si lo quieres más adelante:** mostrar un código QR para escanear en vez de copiar el secreto a
 mano (hoy funciona, pero es menos cómodo); se evitó a propósito para no agregar una librería nueva sin
